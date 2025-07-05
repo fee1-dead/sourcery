@@ -8,5 +8,7 @@ pub(crate) use token::*;
 use crate::parse::parse;
 
 fn main() {
-    dbg!(parse("mod foo {}"));
+    println!("{:#?}", parse(" /* w */ mod foo {
+        mod barrr ; // a
+    }"));
 }

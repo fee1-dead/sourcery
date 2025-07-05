@@ -41,7 +41,7 @@ impl<'src> Lexer<'src> {
                     doc_style: _,
                 } => {
                     trivia.list.push(Trivium {
-                        kind: TriviumKind::LineComment,
+                        kind: TriviumKind::BlockComment,
                         span,
                     });
                     continue;

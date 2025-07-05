@@ -3,9 +3,32 @@ use crate::{token, Ident, Trivia};
 
 #[derive(Debug)]
 pub struct List<T> {
-    inner: Vec<(T, Trivia)>,
+    first: Option<Box<T>>,
+    inner: Vec<(Trivia, T)>,
+}
 
-    last: Option<Box<T>>,
+impl<T> Default for List<T> {
+    fn default() -> Self {
+        List { first: None, inner: vec![] }
+    }
+}
+
+impl<T> List<T> {
+    pub fn single(x: T) -> List<T> {
+        List {
+            first: Some(Box::new(x)),
+            inner: vec![]
+        }
+    }
+
+    pub fn push(&mut self, t: Trivia, x: T) {
+        if self.first.is_none() {
+            assert!(t.list.is_empty());
+            self.first = Some(Box::new(x));
+        } else {
+            self.inner.push((t, x));
+        }        
+    }
 }
 
 #[derive(Debug)]
