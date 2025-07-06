@@ -44,25 +44,76 @@ impl Debug for Trivia {
     }
 }
 
-pub(crate) mod kw {
-    #[derive(Debug)]
-    pub struct Mod;
-}
-
-pub(crate) mod tok {
-    #[derive(Debug)]
-    pub struct Semi;
-}
-
 pub(crate) mod grouping {
+    use crate::print::Print;
+
     #[derive(Debug)]
     pub struct Braces<T>(pub T);
+
+    impl<T: Print> Print for Braces<T> {
+        fn print(&self, orig_src: &str, dest: &mut String) {
+            dest.push('{');
+            self.0.print(orig_src, dest);
+            dest.push('}');
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Parens<T>(pub T);
+
+    impl<T: Print> Print for Parens<T> {
+        fn print(&self, orig_src: &str, dest: &mut String) {
+            dest.push('(');
+            self.0.print(orig_src, dest);
+            dest.push(')');
+        }
+    }
 }
 
-#[macro_export]
-macro_rules! token {
-    [mod] => (crate::kw::Mod);
-    [;] => (crate::tok::Semi);
+macro_rules! define_tokens {
+    (keywords($($kname:ident($kt:tt)),*$(,)?); tokens($($tname:ident($tt:tt)),*$(,)?);) => {
+        pub(crate) mod kw {
+            $(
+                #[derive(Debug)]
+                pub struct $kname;
+
+                impl crate::print::Print for $kname {
+                    fn print(&self, _: &str, out: &mut String) {
+                        out.push_str(stringify!($kt))
+                    }
+                }
+            )*
+        }
+        pub(crate) mod tok {
+            $(
+                #[derive(Debug)]
+                pub struct $tname;
+
+                impl crate::print::Print for $tname {
+                    fn print(&self, _: &str, out: &mut String) {
+                        out.push_str(stringify!($tt))
+                    }
+                }
+            )*
+        }
+
+        #[macro_export]
+        macro_rules! token {
+            $(
+                [$kt] => (crate::kw::$kname);
+            )*
+            $(
+                [$tt] => (crate::tok::$tname);
+            )*
+        }
+
+        pub use token;
+    };
+}
+
+define_tokens! {
+    keywords(Mod(mod), Pub(pub), Use(use), In(in));
+    tokens(Semi(;), ColonColon(::));
 }
 
 pub struct Ident(pub Range<u32>);

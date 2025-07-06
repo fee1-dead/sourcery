@@ -1,19 +1,7 @@
-use crate::{ast::{File, Item, ItemMod, Module}, conv_span, grouping, kw, tok, Ident, Trivia, Trivium};
+use crate::{ast::{File, Item, ItemMod, Module}, conv_span, Ident, Trivia, Trivium};
 
 pub trait Print {
     fn print(&self, orig_src: &str, dest: &mut String);
-}
-
-impl Print for kw::Mod {
-    fn print(&self, _: &str, dest: &mut String) {
-        dest.push_str("mod");
-    }
-}
-
-impl Print for tok::Semi {
-    fn print(&self, _: &str, dest: &mut String) {
-        dest.push(';');
-    }
 }
 
 impl<T: Print> Print for &'_ T {
@@ -45,14 +33,6 @@ impl<T: Print> Print for Option<T> {
         if let Some(x) = self {
             x.print(orig_src, dest)
         }
-    }
-}
-
-impl<T: Print> Print for grouping::Braces<T> {
-    fn print(&self, orig_src: &str, dest: &mut String) {
-        dest.push('{');
-        self.0.print(orig_src, dest);
-        dest.push('}');
     }
 }
 

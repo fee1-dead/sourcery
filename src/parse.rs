@@ -4,9 +4,10 @@ use std::ops::Range;
 
 use ra_ap_rustc_lexer::TokenKind;
 
-use crate::ast::{File, Item, ItemMod, List, Module};
-use crate::grouping::Braces;
-use crate::{conv_span, token, Ident, Lexer, Trivia};
+use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
+use crate::grouping::{Braces, Parens};
+use crate::token::token;
+use crate::{conv_span, Ident, Lexer, Trivia};
 
 thread_local! {
     pub static SRC: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -100,6 +101,24 @@ impl<'src> Parser<'src> {
             }
             let (t, i) = self.parse_item();
             module.items.push(t, i);
+        }
+    }
+    pub fn parse_vis(&mut self) -> Option<(Trivia, Visibility)> {
+        let t0 = self.eat_ident("pub")?;
+        if let Some(t1) = self.eat(TokenKind::OpenParen) {
+            if let Some(t2) = self.eat_ident("in") {
+                todo!()
+            } else {
+                let (t2, ident) = self.parse_ident();
+                let t3 = self.eat(TokenKind::CloseParen).unwrap();
+                Some((t0, Visibility::Restricted { pub_: token![pub], t1, parens: Parens(VisRestricted {
+                    t2, in_: None,
+                    path: Path { leading_colon: None, seg1: PathSegment { ident }, rest: vec![] },
+                    t3, 
+                })   }))
+            }
+        } else {
+            Some((t0, Visibility::Public(token![pub])))
         }
     }
     pub fn parse_module(&mut self) -> Module {

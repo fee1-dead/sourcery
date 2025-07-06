@@ -1,6 +1,7 @@
-use crate::grouping::Braces;
+use crate::grouping::{Braces, Parens};
 use crate::print::Print;
-use crate::{token, Ident, Trivia};
+use crate::token::token;
+use crate::{Ident, Trivia};
 
 #[derive(Debug)]
 pub struct List<T> {
@@ -51,6 +52,36 @@ pub struct ItemMod {
     pub t2: Trivia,
     pub semi: Option<token![;]>,
     pub content: Option<Braces<Module>>,
+}
+
+#[derive(Debug)]
+pub struct PathSegment {
+    pub ident: Ident,
+}
+
+#[derive(Debug)]
+pub struct Path {
+    pub leading_colon: Option<(token![::], Trivia)>,
+    pub seg1: PathSegment,
+    pub rest: Vec<(Trivia, token![::], Trivia, Ident)>,
+}
+
+#[derive(Debug)]
+pub struct VisRestricted {
+    pub t2: Trivia,
+    pub in_: Option<(token![in], Trivia)>,
+    pub path: Path,
+    pub t3: Trivia,
+}
+
+#[derive(Debug)]
+pub enum Visibility {
+    Public(token![pub]),
+    Restricted {
+        pub_: token![pub],
+        t1: Trivia,
+        parens: Parens<VisRestricted>,
+    },
 }
 
 #[derive(Debug)]
