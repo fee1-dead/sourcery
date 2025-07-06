@@ -2,12 +2,12 @@ use std::cell::RefCell;
 use std::mem;
 use std::ops::Range;
 
-use ra_ap_rustc_lexer::TokenKind;
+use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
 
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::grouping::{Braces, Parens};
 use crate::token::token;
-use crate::{conv_span, Ident, Lexer, Trivia};
+use crate::{Ident, Lexer, Trivia, conv_span};
 
 thread_local! {
     pub static SRC: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -29,7 +29,17 @@ impl<'src> Parser<'src> {
     pub fn new(s: &'src str) -> Self {
         SRC.set(Some(s.to_owned()));
         let lexer = crate::lex::tokenize(s);
-        let mut p = Parser { orig: s, lexer, token: (Trivia::default(), Token { kind: TokenKind::Whitespace, span: 0..0 }) };
+        let mut p = Parser {
+            orig: s,
+            lexer,
+            token: (
+                Trivia::default(),
+                Token {
+                    kind: TokenKind::Whitespace,
+                    span: 0..0,
+                },
+            ),
+        };
         p.bump();
         p
     }
@@ -49,6 +59,35 @@ impl<'src> Parser<'src> {
     pub fn eat(&mut self, tok: TokenKind) -> Option<Trivia> {
         self.check(tok).then(|| self.bump().0)
     }
+    fn lookahead<R>(&mut self, n: usize, x: impl FnOnce(&(Trivia, Token)) -> R) -> R {
+        let snapshot = self.lexer.inner.as_str();
+        let mut restore = None;
+        for _ in 0..n {
+            let orig = self.bump();
+            if restore.is_none() {
+                restore = Some(orig);
+            }
+        }
+
+        let r = x(&self.token);
+        self.lexer.inner = Cursor::new(snapshot, FrontmatterAllowed::No);
+        if let Some(orig) = restore {
+            self.token = orig;
+        }
+        r
+    }
+
+    /// eat two tokens, expecting no trivia between them.
+    pub fn eat2(&mut self, tok1: TokenKind, tok2: TokenKind) -> Option<Trivia> {
+        if self.check(tok1) && self.lookahead(1, |(tr0, tok)| tr0.is_empty() && tok.kind == tok2) {
+            let (t, _) = self.bump();
+            self.bump();
+            Some(t)
+        } else {
+            None
+        }
+    }
+
     pub fn eat_ident(&mut self, s: &str) -> Option<Trivia> {
         self.check_ident(s).then(|| self.bump().0)
     }
@@ -58,7 +97,8 @@ impl<'src> Parser<'src> {
         (t, Ident(tok.span))
     }
     pub fn parse_item(&mut self) -> (Trivia, Item) {
-        if let Some(t0) = self.eat_ident("mod") {
+        let vis = self.parse_vis();
+        if let Some(tbeforemod) = self.eat_ident("mod") {
             let (t1, name) = self.parse_ident();
             let (t2, semi, content) = if let Some(t2) = self.eat(TokenKind::Semi) {
                 (t2, Some(token![;]), None)
@@ -68,14 +108,23 @@ impl<'src> Parser<'src> {
             } else {
                 unimplemented!()
             };
-            (t0, Item::Mod(ItemMod {
-                kw: token![mod],
-                t1,
-                name,
-                t2,
-                semi,
-                content,
-            }))
+            let (t0, vis) = if let Some((t0, vis)) = vis {
+                (t0, Some((vis, tbeforemod)))
+            } else {
+                (tbeforemod, None)
+            };
+            (
+                t0,
+                Item::Mod(ItemMod {
+                    vis: vis,
+                    kw: token![mod],
+                    t1,
+                    name,
+                    t2,
+                    semi,
+                    content,
+                }),
+            )
         } else {
             unimplemented!("{:?}, {:?}", self.token, self.snippet())
         }
@@ -103,20 +152,63 @@ impl<'src> Parser<'src> {
             module.items.push(t, i);
         }
     }
+    pub fn parse_path_segment(&mut self) -> (Trivia, PathSegment) {
+        let (t0, ident) = self.parse_ident();
+        (t0, PathSegment { ident })
+    }
+    pub fn parse_path(&mut self) -> (Trivia, Path) {
+        let (t0, leading_colon, seg1) =
+            if let Some(t0) = self.eat2(TokenKind::Colon, TokenKind::Colon) {
+                let (t1, seg1) = self.parse_path_segment();
+                (t0, Some((token![::], t1)), seg1)
+            } else {
+                let (t0, seg1) = self.parse_path_segment();
+                (t0, None, seg1)
+            };
+
+        let mut rest = vec![];
+
+        while let Some(t1) = self.eat2(TokenKind::Colon, TokenKind::Colon) {
+            let (t2, seg) = self.parse_path_segment();
+            rest.push((t1, token![::], t2, seg));
+        }
+
+        (
+            t0,
+            Path {
+                leading_colon,
+                seg1,
+                rest,
+            },
+        )
+    }
     pub fn parse_vis(&mut self) -> Option<(Trivia, Visibility)> {
         let t0 = self.eat_ident("pub")?;
         if let Some(t1) = self.eat(TokenKind::OpenParen) {
-            if let Some(t2) = self.eat_ident("in") {
-                todo!()
+            let (t2, in_, path) = if let Some(t2) = self.eat_ident("in") {
+                let (t2_5, path) = self.parse_path();
+                (t2, Some((token![in], t2_5)), path)
             } else {
                 let (t2, ident) = self.parse_ident();
-                let t3 = self.eat(TokenKind::CloseParen).unwrap();
-                Some((t0, Visibility::Restricted { pub_: token![pub], t1, parens: Parens(VisRestricted {
-                    t2, in_: None,
-                    path: Path { leading_colon: None, seg1: PathSegment { ident }, rest: vec![] },
-                    t3, 
-                })   }))
-            }
+                (
+                    t2,
+                    None,
+                    Path {
+                        leading_colon: None,
+                        seg1: PathSegment { ident },
+                        rest: vec![],
+                    },
+                )
+            };
+            let t3 = self.eat(TokenKind::CloseParen).unwrap();
+            Some((
+                t0,
+                Visibility::Restricted {
+                    pub_: token![pub],
+                    t1,
+                    parens: Parens(VisRestricted { t2, in_, path, t3 }),
+                },
+            ))
         } else {
             Some((t0, Visibility::Public(token![pub])))
         }

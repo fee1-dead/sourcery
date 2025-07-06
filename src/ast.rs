@@ -11,7 +11,10 @@ pub struct List<T> {
 
 impl<T> Default for List<T> {
     fn default() -> Self {
-        List { first: None, inner: vec![] }
+        List {
+            first: None,
+            inner: vec![],
+        }
     }
 }
 
@@ -30,7 +33,7 @@ impl<T> List<T> {
     pub fn single(x: T) -> List<T> {
         List {
             first: Some(Box::new(x)),
-            inner: vec![]
+            inner: vec![],
         }
     }
 
@@ -40,12 +43,13 @@ impl<T> List<T> {
             self.first = Some(Box::new(x));
         } else {
             self.inner.push((t, x));
-        }        
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct ItemMod {
+    pub vis: Option<(Visibility, Trivia)>,
     pub kw: token![mod],
     pub t1: Trivia,
     pub name: Ident,
@@ -63,7 +67,7 @@ pub struct PathSegment {
 pub struct Path {
     pub leading_colon: Option<(token![::], Trivia)>,
     pub seg1: PathSegment,
-    pub rest: Vec<(Trivia, token![::], Trivia, Ident)>,
+    pub rest: Vec<(Trivia, token![::], Trivia, PathSegment)>,
 }
 
 #[derive(Debug)]
@@ -101,5 +105,3 @@ pub struct File {
     // shebang, frontmatter
     pub module: Module,
 }
-
-

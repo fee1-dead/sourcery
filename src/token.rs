@@ -19,7 +19,14 @@ pub fn conv_span(x: Range<u32>) -> Range<usize> {
 
 #[derive(Default)]
 pub struct Trivia {
+    // TODO make private
     pub list: Vec<Trivium>,
+}
+
+impl Trivia {
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
 }
 
 impl Debug for Trivia {
@@ -32,14 +39,26 @@ impl Debug for Trivia {
                 LineComment(&'a str),
                 BlockComment(&'a str),
             }
-            let v = self.list.iter().map(|tv| match tv.kind {
-                TriviumKind::BlockComment => TriviumKindWrap::BlockComment(&s[conv_span(tv.span.clone())]),
-                TriviumKind::LineComment => TriviumKindWrap::LineComment(&s[conv_span(tv.span.clone())]),
-                TriviumKind::Whitespace => TriviumKindWrap::Whitespace(&s[conv_span(tv.span.clone())]),
-            }).collect::<Vec<_>>();
+            let v = self
+                .list
+                .iter()
+                .map(|tv| match tv.kind {
+                    TriviumKind::BlockComment => {
+                        TriviumKindWrap::BlockComment(&s[conv_span(tv.span.clone())])
+                    }
+                    TriviumKind::LineComment => {
+                        TriviumKindWrap::LineComment(&s[conv_span(tv.span.clone())])
+                    }
+                    TriviumKind::Whitespace => {
+                        TriviumKindWrap::Whitespace(&s[conv_span(tv.span.clone())])
+                    }
+                })
+                .collect::<Vec<_>>();
             write!(f, "{v:?}")
         } else {
-            f.debug_list().entries(self.list.iter().map(|t| (&t.kind, &t.span))).finish()
+            f.debug_list()
+                .entries(self.list.iter().map(|t| (&t.kind, &t.span)))
+                .finish()
         }
     }
 }
@@ -112,7 +131,7 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    keywords(Mod(mod), Pub(pub), Use(use), In(in));
+    keywords(Mod(mod), Pub(pub), In(in));
     tokens(Semi(;), ColonColon(::));
 }
 
@@ -127,5 +146,3 @@ impl Debug for Ident {
         }
     }
 }
-
-

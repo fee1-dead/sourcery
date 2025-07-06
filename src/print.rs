@@ -1,4 +1,8 @@
-use crate::{ast::{File, Item, ItemMod, Module}, conv_span, Ident, Trivia, Trivium};
+use crate::{
+    Ident, Trivia, Trivium,
+    ast::{File, Item, ItemMod, Module, Path, PathSegment, VisRestricted, Visibility},
+    conv_span,
+};
 
 pub trait Print {
     fn print(&self, orig_src: &str, dest: &mut String);
@@ -36,10 +40,77 @@ impl<T: Print> Print for Option<T> {
     }
 }
 
+impl<T1: Print, T2: Print> Print for (T1, T2) {
+    fn print(&self, orig_src: &str, dest: &mut String) {
+        let (a, b) = self;
+        a.print(orig_src, dest);
+        b.print(orig_src, dest);
+    }
+}
+
+impl Print for PathSegment {
+    fn print(&self, orig_src: &str, dest: &mut String) {
+        let PathSegment { ident } = self;
+        ident.print(orig_src, dest);
+    }
+}
+
+impl Print for Path {
+    fn print(&self, orig_src: &str, dest: &mut String) {
+        let Path {
+            leading_colon,
+            seg1,
+            rest,
+        } = self;
+        leading_colon.print(orig_src, dest);
+        seg1.print(orig_src, dest);
+        rest.iter().for_each(|(t1, cc, t2, ident)| {
+            t1.print(orig_src, dest);
+            cc.print(orig_src, dest);
+            t2.print(orig_src, dest);
+            ident.print(orig_src, dest);
+        });
+    }
+}
+
+impl Print for VisRestricted {
+    fn print(&self, orig_src: &str, dest: &mut String) {
+        let VisRestricted { t2, in_, path, t3 } = self;
+        t2.print(orig_src, dest);
+        in_.print(orig_src, dest);
+        path.print(orig_src, dest);
+        t3.print(orig_src, dest);
+    }
+}
+
+impl Print for Visibility {
+    fn print(&self, orig_src: &str, dest: &mut String) {
+        match self {
+            Visibility::Public(p) => p.print(orig_src, dest),
+            Visibility::Restricted { pub_, t1, parens } => {
+                pub_.print(orig_src, dest);
+                t1.print(orig_src, dest);
+                parens.print(orig_src, dest);
+            }
+        }
+    }
+}
+
 impl Print for ItemMod {
     fn print(&self, orig_src: &str, dest: &mut String) {
-        let ItemMod { kw, t1, name, t2, semi, content }
-        = self;
+        let ItemMod {
+            vis,
+            kw,
+            t1,
+            name,
+            t2,
+            semi,
+            content,
+        } = self;
+        if let Some((vis, t0)) = vis {
+            vis.print(orig_src, dest);
+            t0.print(orig_src, dest);
+        }
         kw.print(orig_src, dest);
         t1.print(orig_src, dest);
         name.print(orig_src, dest);
