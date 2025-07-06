@@ -1,4 +1,5 @@
 use crate::grouping::Braces;
+use crate::print::Print;
 use crate::{token, Ident, Trivia};
 
 #[derive(Debug)]
@@ -10,6 +11,17 @@ pub struct List<T> {
 impl<T> Default for List<T> {
     fn default() -> Self {
         List { first: None, inner: vec![] }
+    }
+}
+
+impl<T: Print> Print for List<T> {
+    fn print(&self, orig_src: &str, dest: &mut String) {
+        let List { first, inner } = self;
+        first.as_deref().print(orig_src, dest);
+        for (t, x) in inner {
+            t.print(orig_src, dest);
+            x.print(orig_src, dest);
+        }
     }
 }
 
