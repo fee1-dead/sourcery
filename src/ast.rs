@@ -1,9 +1,10 @@
+use std::fmt::Debug;
+
 use crate::grouping::{Braces, Parens};
 use crate::print::Print;
 use crate::token::token;
 use crate::{Ident, Trivia};
 
-#[derive(Debug)]
 pub struct List<T> {
     first: Option<Box<T>>,
     inner: Vec<(Trivia, T)>,
@@ -29,6 +30,16 @@ impl<T: Print> Print for List<T> {
     }
 }
 
+impl<T: Debug> Debug for List<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut f = f.debug_list();
+        if let Some(first) = &self.first {
+            f.entry(&first);
+        }
+        f.entries(self.inner.iter().flat_map(|(tr, x)| [tr as &dyn Debug, x])).finish()
+    }
+}
+
 impl<T> List<T> {
     pub fn single(x: T) -> List<T> {
         List {
@@ -47,7 +58,6 @@ impl<T> List<T> {
     }
 }
 
-#[derive(Debug)]
 pub struct ItemMod {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: token![mod],
@@ -56,6 +66,24 @@ pub struct ItemMod {
     pub t2: Trivia,
     pub semi: Option<token![;]>,
     pub content: Option<Braces<Module>>,
+}
+
+impl Debug for ItemMod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ItemMod { vis, kw, t1, name, t2, semi, content } = self;
+        let mut f = f.debug_struct("ItemMod");
+        if let Some(vis) = vis {
+            f.field("vis", vis);
+        }
+        f.field("kw", kw).field("t1", t1).field("name", name).field("t2", t2);
+        if let Some(semi) = semi {
+            f.field("semi", semi);
+        }
+        if let Some(content) = content {
+            f.field("content", content);
+        }
+        f.finish()
+    }
 }
 
 #[derive(Debug)]
