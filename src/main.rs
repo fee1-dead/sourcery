@@ -1,12 +1,4 @@
-mod ast;
-mod lex;
-pub(crate) use lex::Lexer;
-mod token;
-pub(crate) use token::*;
-mod parse;
-mod print;
-
-use crate::{parse::parse, print::Print};
+use sourcery::{parse, Print};
 
 fn main() {
     let src = " /* w */ mod foo {

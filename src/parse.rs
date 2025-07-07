@@ -56,6 +56,7 @@ impl<'src> Parser<'src> {
     }
     fn lookahead<R>(&mut self, n: usize, x: impl FnOnce(&(Trivia, Token)) -> R) -> R {
         let snapshot = self.lexer.inner.as_str();
+        let pos_before = self.lexer.cur_pos;
         let mut restore = None;
         for _ in 0..n {
             let orig = self.bump();
@@ -66,6 +67,7 @@ impl<'src> Parser<'src> {
 
         let r = x(&self.token);
         self.lexer.inner = Cursor::new(snapshot, FrontmatterAllowed::No);
+        self.lexer.cur_pos = pos_before;
         if let Some(orig) = restore {
             self.token = orig;
         }

@@ -1,8 +1,25 @@
 [package]
-name = "reformat"
+name = "sourcery"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 ra-ap-rustc_lexer = "0.119.0"
 smol_str = "0.3.2"
+
+[lib]
+name = "sourcery"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sourcery"
+path = "src/main.rs"
+
+[[test]]
+name = "pp"
+path = "tests/pp.rs"
+harness = false
+
+[dev-dependencies]
+color-eyre = "0.6.5"
+libtest-mimic = "0.8.1"
