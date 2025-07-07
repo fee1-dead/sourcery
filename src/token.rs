@@ -1,20 +1,19 @@
-use std::{fmt::Debug, ops::Range};
+use std::fmt::Debug;
+
+use smol_str::SmolStr;
 
 #[derive(Debug)]
-pub enum TriviumKind {
-    Whitespace,
-    LineComment,
-    BlockComment,
+pub enum Trivium {
+    Whitespace(SmolStr),
+    LineComment(SmolStr),
+    BlockComment(SmolStr),
 }
 
-#[derive(Debug)]
-pub struct Trivium {
-    pub kind: TriviumKind,
-    pub span: Range<u32>,
-}
-
-pub fn conv_span(x: Range<u32>) -> Range<usize> {
-    x.start as usize..x.end as usize
+impl Trivium {
+    pub fn snippet(&self) -> &SmolStr {
+        let (Trivium::Whitespace(s) | Trivium::LineComment(s) | Trivium::BlockComment(s)) = self;
+        s
+    }
 }
 
 #[derive(Default)]
@@ -31,35 +30,9 @@ impl Trivia {
 
 impl Debug for Trivia {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(s) = crate::parse::SRC.with_borrow(Clone::clone) {
-            #[derive(Debug)]
-            #[expect(dead_code)] // we're only using this for the `Debug` impl
-            enum TriviumKindWrap<'a> {
-                Whitespace(&'a str),
-                LineComment(&'a str),
-                BlockComment(&'a str),
-            }
-            let v = self
-                .list
-                .iter()
-                .map(|tv| match tv.kind {
-                    TriviumKind::BlockComment => {
-                        TriviumKindWrap::BlockComment(&s[conv_span(tv.span.clone())])
-                    }
-                    TriviumKind::LineComment => {
-                        TriviumKindWrap::LineComment(&s[conv_span(tv.span.clone())])
-                    }
-                    TriviumKind::Whitespace => {
-                        TriviumKindWrap::Whitespace(&s[conv_span(tv.span.clone())])
-                    }
-                })
-                .collect::<Vec<_>>();
-            write!(f, "{v:?}")
-        } else {
-            f.debug_list()
-                .entries(self.list.iter().map(|t| (&t.kind, &t.span)))
-                .finish()
-        }
+        let Trivia { list } = self;
+        // intentionally switch back to non-fancy formatting
+        write!(f, "{list:?}")
     }
 }
 
@@ -70,9 +43,9 @@ pub(crate) mod grouping {
     pub struct Braces<T>(pub T);
 
     impl<T: Print> Print for Braces<T> {
-        fn print(&self, orig_src: &str, dest: &mut String) {
+        fn print(&self, dest: &mut String) {
             dest.push('{');
-            self.0.print(orig_src, dest);
+            self.0.print(dest);
             dest.push('}');
         }
     }
@@ -81,9 +54,9 @@ pub(crate) mod grouping {
     pub struct Parens<T>(pub T);
 
     impl<T: Print> Print for Parens<T> {
-        fn print(&self, orig_src: &str, dest: &mut String) {
+        fn print(&self, dest: &mut String) {
             dest.push('(');
-            self.0.print(orig_src, dest);
+            self.0.print(dest);
             dest.push(')');
         }
     }
@@ -97,7 +70,7 @@ macro_rules! define_tokens {
                 pub struct $kname;
 
                 impl crate::print::Print for $kname {
-                    fn print(&self, _: &str, out: &mut String) {
+                    fn print(&self, out: &mut String) {
                         out.push_str(stringify!($kt))
                     }
                 }
@@ -109,7 +82,7 @@ macro_rules! define_tokens {
                 pub struct $tname;
 
                 impl crate::print::Print for $tname {
-                    fn print(&self, _: &str, out: &mut String) {
+                    fn print(&self, out: &mut String) {
                         out.push_str(stringify!($tt))
                     }
                 }
@@ -135,14 +108,10 @@ define_tokens! {
     tokens(Semi(;), ColonColon(::));
 }
 
-pub struct Ident(pub Range<u32>);
+pub struct Ident(pub SmolStr);
 
 impl Debug for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(s) = crate::parse::SRC.with_borrow(Clone::clone) {
-            s[conv_span(self.0.clone())].fmt(f)
-        } else {
-            f.debug_tuple("Ident").field(&self.0).finish()
-        }
+        self.0.fmt(f)
     }
 }

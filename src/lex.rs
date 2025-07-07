@@ -1,49 +1,40 @@
-use std::ops::Range;
-
-use crate::{Trivia, Trivium, TriviumKind};
+use crate::{Trivia, Trivium};
 
 use ra_ap_rustc_lexer as rustc_lexer;
 
 use rustc_lexer::{Cursor, TokenKind};
+use smol_str::SmolStr;
 
 pub struct Lexer<'src> {
+    pub orig_str: &'src str,
     pub inner: Cursor<'src>,
-    pub cur_pos: u32,
+    pub cur_pos: usize,
 }
 
 impl<'src> Lexer<'src> {
-    pub fn next(&mut self) -> (Trivia, TokenKind, Range<u32>) {
+    pub fn next(&mut self) -> (Trivia, TokenKind, SmolStr) {
         use TokenKind::*;
         let mut trivia = Trivia { list: vec![] };
 
         loop {
             let start = self.cur_pos;
             let tok = self.inner.advance_token();
-            self.cur_pos += tok.len;
-            let span = start..self.cur_pos;
+            self.cur_pos += tok.len as usize;
+            let snippet = SmolStr::new(&self.orig_str[start..self.cur_pos]);
             break match tok.kind {
                 Whitespace => {
-                    trivia.list.push(Trivium {
-                        kind: TriviumKind::Whitespace,
-                        span,
-                    });
+                    trivia.list.push(Trivium::Whitespace(snippet));
                     continue;
                 }
                 LineComment { doc_style: _ } => {
-                    trivia.list.push(Trivium {
-                        kind: TriviumKind::LineComment,
-                        span,
-                    });
+                    trivia.list.push(Trivium::LineComment(snippet));
                     continue;
                 }
                 BlockComment {
                     terminated: _,
                     doc_style: _,
                 } => {
-                    trivia.list.push(Trivium {
-                        kind: TriviumKind::BlockComment,
-                        span,
-                    });
+                    trivia.list.push(Trivium::BlockComment(snippet));
                     continue;
                 }
                 Frontmatter { .. }
@@ -84,7 +75,7 @@ impl<'src> Lexer<'src> {
                 | Caret
                 | Percent
                 | Unknown
-                | Eof => (trivia, tok.kind, span),
+                | Eof => (trivia, tok.kind, snippet),
             };
         }
     }
@@ -92,6 +83,7 @@ impl<'src> Lexer<'src> {
 
 pub fn tokenize(s: &str) -> Lexer<'_> {
     Lexer {
+        orig_str: s,
         inner: Cursor::new(s, rustc_lexer::FrontmatterAllowed::Yes),
         cur_pos: 0,
     }

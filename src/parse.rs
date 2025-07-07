@@ -1,13 +1,13 @@
 use std::cell::RefCell;
 use std::mem;
-use std::ops::Range;
 
 use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
+use smol_str::SmolStr;
 
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::grouping::{Braces, Parens};
 use crate::token::token;
-use crate::{Ident, Lexer, Trivia, conv_span};
+use crate::{Ident, Lexer, Trivia};
 
 thread_local! {
     pub static SRC: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -16,11 +16,10 @@ thread_local! {
 #[derive(Debug)]
 pub struct Token {
     kind: TokenKind,
-    span: Range<u32>,
+    snippet: SmolStr,
 }
 
 pub struct Parser<'src> {
-    orig: &'src str,
     lexer: Lexer<'src>,
     token: (Trivia, Token),
 }
@@ -30,13 +29,12 @@ impl<'src> Parser<'src> {
         SRC.set(Some(s.to_owned()));
         let lexer = crate::lex::tokenize(s);
         let mut p = Parser {
-            orig: s,
             lexer,
             token: (
                 Trivia::default(),
                 Token {
                     kind: TokenKind::Whitespace,
-                    span: 0..0,
+                    snippet: SmolStr::new_static(""),
                 },
             ),
         };
@@ -44,17 +42,14 @@ impl<'src> Parser<'src> {
         p
     }
     pub fn bump(&mut self) -> (Trivia, Token) {
-        let (trivia, kind, span) = self.lexer.next();
-        mem::replace(&mut self.token, (trivia, Token { kind, span }))
+        let (trivia, kind, snippet) = self.lexer.next();
+        mem::replace(&mut self.token, (trivia, Token { kind, snippet }))
     }
     pub fn check(&self, tok: TokenKind) -> bool {
         self.token.1.kind == tok
     }
-    pub fn snippet(&self) -> &'src str {
-        &self.orig[conv_span(self.token.1.span.clone())]
-    }
     pub fn check_ident(&self, s: &str) -> bool {
-        self.check(TokenKind::Ident) && self.snippet() == s
+        self.check(TokenKind::Ident) && self.token.1.snippet == s
     }
     pub fn eat(&mut self, tok: TokenKind) -> Option<Trivia> {
         self.check(tok).then(|| self.bump().0)
@@ -94,7 +89,7 @@ impl<'src> Parser<'src> {
     pub fn parse_ident(&mut self) -> (Trivia, Ident) {
         assert!(self.check(TokenKind::Ident));
         let (t, tok) = self.bump();
-        (t, Ident(tok.span))
+        (t, Ident(tok.snippet))
     }
     pub fn parse_item(&mut self) -> (Trivia, Item) {
         let vis = self.parse_vis();
@@ -126,7 +121,7 @@ impl<'src> Parser<'src> {
                 }),
             )
         } else {
-            unimplemented!("{:?}, {:?}", self.token, self.snippet())
+            unimplemented!("{:?}", self.token)
         }
     }
     pub fn parse_module_before(&mut self, tok: TokenKind) -> Module {

@@ -19,12 +19,12 @@ impl<T> Default for List<T> {
 }
 
 impl<T: Print> Print for List<T> {
-    fn print(&self, orig_src: &str, dest: &mut String) {
+    fn print(&self, dest: &mut String) {
         let List { first, inner } = self;
-        first.as_deref().print(orig_src, dest);
+        first.as_deref().print(dest);
         for (t, x) in inner {
-            t.print(orig_src, dest);
-            x.print(orig_src, dest);
+            t.print(dest);
+            x.print(dest);
         }
     }
 }
