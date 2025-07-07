@@ -142,8 +142,6 @@ pub struct Module {
     pub tlast: Trivia,
 }
 
-pub struct InnerAttribute {}
-
 #[derive(Debug)]
 pub struct File {
     // shebang, frontmatter
