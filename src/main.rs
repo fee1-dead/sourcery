@@ -1,4 +1,4 @@
-use sourcery::{parse, Print};
+use sourcery::{Print, parse};
 
 fn main() {
     let src = " /* w */ mod foo {

@@ -27,14 +27,14 @@ fn main() -> color_eyre::Result<ExitCode> {
         tests.push(Trial::test(s.clone(), move || {
             let content = fs::read_to_string(&path).map_err(Failed::from)?;
             let Ok(parsed) = catch_unwind(|| sourcery::parse(&content)) else {
-                return Err(Failed::from("panicked while parsing"))
+                return Err(Failed::from("panicked while parsing"));
             };
             let mut content2 = String::new();
             sourcery::Print::print(&parsed, &mut content2);
             if content != content2 {
-                return Err(Failed::from("different content"))
+                return Err(Failed::from("different content"));
             }
-            
+
             Ok(())
         }))
     }

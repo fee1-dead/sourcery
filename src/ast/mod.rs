@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
 mod token;
-pub use token::{tokens, kw, Token};
-pub use token::{Ident, Trivia, Trivium};
 pub use token::grouping::{Braces, Parens};
+pub use token::{Ident, Trivia, Trivium};
+pub use token::{Token, kw, tokens};
 
 use crate::print::Print;
 
@@ -38,7 +38,8 @@ impl<T: Debug> Debug for List<T> {
         if let Some(first) = &self.first {
             f.entry(&first);
         }
-        f.entries(self.inner.iter().flat_map(|(tr, x)| [tr as &dyn Debug, x])).finish()
+        f.entries(self.inner.iter().flat_map(|(tr, x)| [tr as &dyn Debug, x]))
+            .finish()
     }
 }
 
@@ -72,12 +73,23 @@ pub struct ItemMod {
 
 impl Debug for ItemMod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ItemMod { vis, kw, t1, name, t2, semi, content } = self;
+        let ItemMod {
+            vis,
+            kw,
+            t1,
+            name,
+            t2,
+            semi,
+            content,
+        } = self;
         let mut f = f.debug_struct("ItemMod");
         if let Some(vis) = vis {
             f.field("vis", vis);
         }
-        f.field("kw", kw).field("t1", t1).field("name", name).field("t2", t2);
+        f.field("kw", kw)
+            .field("t1", t1)
+            .field("name", name)
+            .field("t2", t2);
         if let Some(semi) = semi {
             f.field("semi", semi);
         }
@@ -130,9 +142,7 @@ pub struct Module {
     pub tlast: Trivia,
 }
 
-pub struct InnerAttribute {
-    
-}
+pub struct InnerAttribute {}
 
 #[derive(Debug)]
 pub struct File {

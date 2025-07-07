@@ -1,5 +1,6 @@
-use crate::{
-    ast::{File, Item, ItemMod, Module, Path, PathSegment, VisRestricted, Visibility, Ident, Trivia, Trivium,},
+use crate::ast::{
+    File, Ident, Item, ItemMod, Module, Path, PathSegment, Trivia, Trivium, VisRestricted,
+    Visibility,
 };
 
 pub trait Print {

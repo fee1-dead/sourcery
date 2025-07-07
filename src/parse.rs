@@ -4,11 +4,11 @@ use std::mem;
 use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
 use smol_str::SmolStr;
 
-use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
-use crate::ast::{Braces, Parens};
-use crate::ast::Token;
-use crate::ast::{Ident, Trivia};
 use crate::Lexer;
+use crate::ast::Token;
+use crate::ast::{Braces, Parens};
+use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
+use crate::ast::{Ident, Trivia};
 
 thread_local! {
     pub static SRC: RefCell<Option<String>> = const { RefCell::new(None) };
