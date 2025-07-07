@@ -1,9 +1,11 @@
 use std::fmt::Debug;
 
-use crate::grouping::{Braces, Parens};
+mod token;
+pub use token::{tokens, kw, Token};
+pub use token::{Ident, Trivia, Trivium};
+pub use token::grouping::{Braces, Parens};
+
 use crate::print::Print;
-use crate::token::token;
-use crate::{Ident, Trivia};
 
 pub struct List<T> {
     first: Option<Box<T>>,
@@ -60,11 +62,11 @@ impl<T> List<T> {
 
 pub struct ItemMod {
     pub vis: Option<(Visibility, Trivia)>,
-    pub kw: token![mod],
+    pub kw: Token![mod],
     pub t1: Trivia,
     pub name: Ident,
     pub t2: Trivia,
-    pub semi: Option<token![;]>,
+    pub semi: Option<Token![;]>,
     pub content: Option<Braces<Module>>,
 }
 
@@ -93,24 +95,24 @@ pub struct PathSegment {
 
 #[derive(Debug)]
 pub struct Path {
-    pub leading_colon: Option<(token![::], Trivia)>,
+    pub leading_colon: Option<(Token![::], Trivia)>,
     pub seg1: PathSegment,
-    pub rest: Vec<(Trivia, token![::], Trivia, PathSegment)>,
+    pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
 }
 
 #[derive(Debug)]
 pub struct VisRestricted {
     pub t2: Trivia,
-    pub in_: Option<(token![in], Trivia)>,
+    pub in_: Option<(Token![in], Trivia)>,
     pub path: Path,
     pub t3: Trivia,
 }
 
 #[derive(Debug)]
 pub enum Visibility {
-    Public(token![pub]),
+    Public(Token![pub]),
     Restricted {
-        pub_: token![pub],
+        pub_: Token![pub],
         t1: Trivia,
         parens: Parens<VisRestricted>,
     },
@@ -126,6 +128,10 @@ pub struct Module {
     pub t1: Trivia,
     pub items: List<Item>,
     pub tlast: Trivia,
+}
+
+pub struct InnerAttribute {
+    
 }
 
 #[derive(Debug)]

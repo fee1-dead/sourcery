@@ -1,4 +1,4 @@
-use crate::{Trivia, Trivium};
+use crate::ast::{Trivia, Trivium};
 
 use ra_ap_rustc_lexer as rustc_lexer;
 

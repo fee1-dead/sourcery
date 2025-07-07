@@ -64,7 +64,7 @@ pub(crate) mod grouping {
 
 macro_rules! define_tokens {
     (keywords($($kname:ident($kt:tt)),*$(,)?); tokens($($tname:ident($tt:tt)),*$(,)?);) => {
-        pub(crate) mod kw {
+        pub mod kw {
             $(
                 #[derive(Debug)]
                 pub struct $kname;
@@ -76,7 +76,7 @@ macro_rules! define_tokens {
                 }
             )*
         }
-        pub(crate) mod tok {
+        pub mod tokens {
             $(
                 #[derive(Debug)]
                 pub struct $tname;
@@ -90,16 +90,16 @@ macro_rules! define_tokens {
         }
 
         #[macro_export]
-        macro_rules! token {
+        macro_rules! Token {
             $(
-                [$kt] => (crate::kw::$kname);
+                [$kt] => (crate::ast::kw::$kname);
             )*
             $(
-                [$tt] => (crate::tok::$tname);
+                [$tt] => (crate::ast::tokens::$tname);
             )*
         }
 
-        pub use token;
+        pub use Token;
     };
 }
 

@@ -5,9 +5,10 @@ use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
 use smol_str::SmolStr;
 
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
-use crate::grouping::{Braces, Parens};
-use crate::token::token;
-use crate::{Ident, Lexer, Trivia};
+use crate::ast::{Braces, Parens};
+use crate::ast::Token;
+use crate::ast::{Ident, Trivia};
+use crate::Lexer;
 
 thread_local! {
     pub static SRC: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -88,17 +89,19 @@ impl<'src> Parser<'src> {
     pub fn eat_ident(&mut self, s: &str) -> Option<Trivia> {
         self.check_ident(s).then(|| self.bump().0)
     }
+
     pub fn parse_ident(&mut self) -> (Trivia, Ident) {
         assert!(self.check(TokenKind::Ident));
         let (t, tok) = self.bump();
         (t, Ident(tok.snippet))
     }
+
     pub fn parse_item(&mut self) -> (Trivia, Item) {
         let vis = self.parse_vis();
         if let Some(tbeforemod) = self.eat_ident("mod") {
             let (t1, name) = self.parse_ident();
             let (t2, semi, content) = if let Some(t2) = self.eat(TokenKind::Semi) {
-                (t2, Some(token![;]), None)
+                (t2, Some(Token![;]), None)
             } else if let Some(t2) = self.eat(TokenKind::OpenBrace) {
                 let module = self.parse_module_before(TokenKind::CloseBrace);
                 (t2, None, Some(Braces(module)))
@@ -114,7 +117,7 @@ impl<'src> Parser<'src> {
                 t0,
                 Item::Mod(ItemMod {
                     vis: vis,
-                    kw: token![mod],
+                    kw: Token![mod],
                     t1,
                     name,
                     t2,
@@ -157,7 +160,7 @@ impl<'src> Parser<'src> {
         let (t0, leading_colon, seg1) =
             if let Some(t0) = self.eat2(TokenKind::Colon, TokenKind::Colon) {
                 let (t1, seg1) = self.parse_path_segment();
-                (t0, Some((token![::], t1)), seg1)
+                (t0, Some((Token![::], t1)), seg1)
             } else {
                 let (t0, seg1) = self.parse_path_segment();
                 (t0, None, seg1)
@@ -167,7 +170,7 @@ impl<'src> Parser<'src> {
 
         while let Some(t1) = self.eat2(TokenKind::Colon, TokenKind::Colon) {
             let (t2, seg) = self.parse_path_segment();
-            rest.push((t1, token![::], t2, seg));
+            rest.push((t1, Token![::], t2, seg));
         }
 
         (
@@ -179,12 +182,13 @@ impl<'src> Parser<'src> {
             },
         )
     }
+
     pub fn parse_vis(&mut self) -> Option<(Trivia, Visibility)> {
         let t0 = self.eat_ident("pub")?;
         if let Some(t1) = self.eat(TokenKind::OpenParen) {
             let (t2, in_, path) = if let Some(t2) = self.eat_ident("in") {
                 let (t2_5, path) = self.parse_path();
-                (t2, Some((token![in], t2_5)), path)
+                (t2, Some((Token![in], t2_5)), path)
             } else {
                 let (t2, ident) = self.parse_ident();
                 (
@@ -201,13 +205,13 @@ impl<'src> Parser<'src> {
             Some((
                 t0,
                 Visibility::Restricted {
-                    pub_: token![pub],
+                    pub_: Token![pub],
                     t1,
                     parens: Parens(VisRestricted { t2, in_, path, t3 }),
                 },
             ))
         } else {
-            Some((t0, Visibility::Public(token![pub])))
+            Some((t0, Visibility::Public(Token![pub])))
         }
     }
     pub fn parse_module(&mut self) -> Module {
