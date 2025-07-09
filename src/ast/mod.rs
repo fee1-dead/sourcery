@@ -10,6 +10,7 @@ pub use token::{Ident, Literal, Trivia, Trivium};
 pub use token::{Token, kw, tokens};
 
 use crate::print::Print;
+use crate::TrivialPrint;
 
 pub struct List<T> {
     inner: Vec<(T, Trivia)>,
@@ -68,6 +69,7 @@ impl<T> List<T> {
     }
 }
 
+#[derive(TrivialPrint!)]
 pub struct ItemMod {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![mod],
@@ -107,19 +109,19 @@ impl Debug for ItemMod {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct PathSegment {
     pub ident: Ident,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct Path {
     pub leading_colon: Option<(Token![::], Trivia)>,
     pub seg1: PathSegment,
     pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct VisRestricted {
     pub t2: Trivia,
     pub in_: Option<(Token![in], Trivia)>,
@@ -127,9 +129,11 @@ pub struct VisRestricted {
     pub t3: Trivia,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub enum Visibility {
-    Public(Token![pub]),
+    Public {
+        pub_: Token![pub]
+    },
     Restricted {
         pub_: Token![pub],
         t1: Trivia,
@@ -137,24 +141,24 @@ pub enum Visibility {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub enum ItemKind {
     Mod(ItemMod),
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct Item {
     pub attrs: List<Attribute>,
     pub kind: ItemKind,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct Module {
     pub t1: Trivia,
     pub items: List<Item>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct File {
     // shebang, frontmatter
     pub module: Module,

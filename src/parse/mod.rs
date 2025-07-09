@@ -218,7 +218,7 @@ impl<'src> Parser<'src> {
                 },
             ))
         } else {
-            Some((t0, Visibility::Public(Token![pub])))
+            Some((t0, Visibility::Public { pub_: Token![pub] }))
         }
     }
     pub fn parse_literal(&mut self) -> (Trivia, Literal) {

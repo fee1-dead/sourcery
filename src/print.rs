@@ -1,6 +1,56 @@
-use crate::ast::{
-    Attribute, File, Ident, Item, ItemKind, ItemMod, Module, Path, PathSegment, Trivia, Trivium, VisRestricted, Visibility
-};
+use smol_str::SmolStr;
+
+#[macro_export]
+macro_rules! TrivialPrint {
+    (@gen_match([$($existing:tt)*], $self:ident, $dest:ident$(,)?)) => {
+        match $self { $($existing)* }
+    };
+    // don't have macro_metavar_expr.
+    (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
+        $var_name:ident($vis:vis $FieldTy:ty$(,)?)$(;)?
+    $(,$($tt:tt)*)?)) => {
+        crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a ) => {
+            crate::print::Print::print(a, $dest);
+        }], $self, $dest, $($($tt)*)?))
+    };
+    (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
+        $var_name:ident($vis:vis $FieldTy:ty, $vis2:vis $FieldTy2:ty$(,)?)$(;)?
+    $(,$($tt:tt)*)?)) => {
+        crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a, b ) => {
+            crate::print::Print::print(a, $dest);
+            crate::print::Print::print(b, $dest);
+        }], $self, $dest, $($($tt)*)?))
+    };
+    (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
+        $var_name:ident {
+            $($field_vis:vis $field_name:ident: $FieldTy:ty),*$(,)?
+        }
+    $(,$($tt:tt)*)?)) => {
+        crate::TrivialPrint!(@gen_match([$($existing)* $var_name { $($field_name),* } => {
+            $(crate::print::Print::print($field_name, $dest);)*
+        }], $self, $dest, $($($tt)*)?))
+    };
+    (@gen_match([$($existing:tt)*], $self:ident, $dest:ident, $var_name:ident$(,$($tt:tt)*)?)) => {
+        crate::TrivialPrint!(@gen_match([$($existing)* $var_name => {}], $self, $dest, $($($tt)*)?))
+    };
+    ($(#[derive_args(where($($where:tt)*))])? $vis:vis struct $name:ident $(<$($GenTy:ident),*$(,)?>)? $($tt:tt)*) => {
+        impl$(<$($GenTy),*>)? crate::print::Print for $name $(<$($GenTy),*>)? $(where $($where)*)? {
+            fn print(&self, dest: &mut String) {
+                crate::TrivialPrint!(@gen_match([], self, dest, $name $($tt)*))
+            }
+        }
+    };
+    ($(#[derive_args(where($($where:tt)*))])? $vis:vis enum $name:ident $(<$($GenTy:ident),*$(,)?>)? {
+        $($tt:tt)*
+    }) => {
+        impl$(<$($GenTy),*>)? crate::print::Print for $name $(<$($GenTy),*>)? $(where $($where)*)? {
+            fn print(&self, dest: &mut String) {
+                use $name::*;
+                crate::TrivialPrint!(@gen_match([], self, dest, $($tt)*))
+            }
+        }
+    };
+}
 
 pub trait Print {
     fn print(&self, dest: &mut String);
@@ -12,21 +62,9 @@ impl<T: Print> Print for &'_ T {
     }
 }
 
-impl Print for Ident {
+impl Print for SmolStr {
     fn print(&self, dest: &mut String) {
-        dest.push_str(&self.0);
-    }
-}
-
-impl Print for Trivium {
-    fn print(&self, dest: &mut String) {
-        dest.push_str(self.snippet());
-    }
-}
-
-impl Print for Trivia {
-    fn print(&self, dest: &mut String) {
-        self.list.iter().for_each(|t| t.print(dest));
+        dest.push_str(self);
     }
 }
 
@@ -46,111 +84,27 @@ impl<T1: Print, T2: Print> Print for (T1, T2) {
     }
 }
 
-impl Print for PathSegment {
+impl<T1: Print, T2: Print, T3: Print> Print for (T1, T2, T3) {
     fn print(&self, dest: &mut String) {
-        let PathSegment { ident } = self;
-        ident.print(dest);
+        let (a, b, c) = self;
+        a.print(dest);
+        b.print(dest);
+        c.print(dest);
     }
 }
 
-impl Print for Path {
+impl<T1: Print, T2: Print, T3: Print, T4: Print> Print for (T1, T2, T3, T4) {
     fn print(&self, dest: &mut String) {
-        let Path {
-            leading_colon,
-            seg1,
-            rest,
-        } = self;
-        leading_colon.print(dest);
-        seg1.print(dest);
-        rest.iter().for_each(|(t1, cc, t2, ident)| {
-            t1.print(dest);
-            cc.print(dest);
-            t2.print(dest);
-            ident.print(dest);
-        });
+        let (a, b, c, d) = self;
+        a.print(dest);
+        b.print(dest);
+        c.print(dest);
+        d.print(dest);
     }
 }
 
-impl Print for VisRestricted {
+impl<T: Print> Print for Vec<T> {
     fn print(&self, dest: &mut String) {
-        let VisRestricted { t2, in_, path, t3 } = self;
-        t2.print(dest);
-        in_.print(dest);
-        path.print(dest);
-        t3.print(dest);
-    }
-}
-
-impl Print for Visibility {
-    fn print(&self, dest: &mut String) {
-        match self {
-            Visibility::Public(p) => p.print(dest),
-            Visibility::Restricted { pub_, t1, parens } => {
-                pub_.print(dest);
-                t1.print(dest);
-                parens.print(dest);
-            }
-        }
-    }
-}
-
-impl Print for ItemMod {
-    fn print(&self, dest: &mut String) {
-        let ItemMod {
-            vis,
-            kw,
-            t1,
-            name,
-            t2,
-            semi,
-            content,
-        } = self;
-        if let Some((vis, t0)) = vis {
-            vis.print(dest);
-            t0.print(dest);
-        }
-        kw.print(dest);
-        t1.print(dest);
-        name.print(dest);
-        t2.print(dest);
-        semi.print(dest);
-        content.print(dest);
-    }
-}
-
-impl Print for ItemKind {
-    fn print(&self, dest: &mut String) {
-        match self {
-            ItemKind::Mod(im) => im.print(dest),
-        }
-    }
-}
-
-impl Print for Attribute {
-    fn print(&self, dest: &mut String) {
-        todo!()
-    }
-}
-
-impl Print for Item {
-    fn print(&self, dest: &mut String) {
-        let Item { attrs, kind } = self;
-        attrs.print(dest);
-        kind.print(dest);
-    }
-}
-
-impl Print for Module {
-    fn print(&self, dest: &mut String) {
-        let Module { t1, items } = self;
-        t1.print(dest);
-        items.print(dest);
-    }
-}
-
-impl Print for File {
-    fn print(&self, dest: &mut String) {
-        let File { module } = self;
-        module.print(dest);
+        self.iter().for_each(|x| x.print(dest));
     }
 }

@@ -2,7 +2,9 @@ use std::fmt::Debug;
 
 use smol_str::SmolStr;
 
-#[derive(Debug)]
+use crate::TrivialPrint;
+
+#[derive(Debug, TrivialPrint!)]
 pub enum Trivium {
     Whitespace(SmolStr),
     LineComment(SmolStr),
@@ -16,7 +18,7 @@ impl Trivium {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, TrivialPrint!)]
 pub struct Trivia {
     // TODO make private
     pub list: Vec<Trivium>,
@@ -72,20 +74,12 @@ pub(crate) mod grouping {
         }
     }
 
+    #[derive(crate::TrivialPrint!)]
+    #[derive_args(where(T: Print))]
     pub enum AnyGrouping<T> {
         Braces(Braces<T>),
         Brackets(Brackets<T>),
         Parens(Parens<T>),
-    }
-
-    impl<T: Print> Print for AnyGrouping<T> {
-        fn print(&self, dest: &mut String) {
-            match self {
-                AnyGrouping::Braces(b) => b.print(dest),
-                AnyGrouping::Brackets(b) => b.print(dest),
-                AnyGrouping::Parens(p) => p.print(dest),
-            }
-        }
     }
 }
 
@@ -135,6 +129,7 @@ define_tokens! {
     tokens(Semi(;), ColonColon(::), Hash(#), Bang(!), Eq(=));
 }
 
+#[derive(TrivialPrint!)]
 pub struct Ident(pub SmolStr);
 
 impl Debug for Ident {
@@ -143,7 +138,7 @@ impl Debug for Ident {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct Literal {
     pub symbol: SmolStr,
     pub suffix: SmolStr,

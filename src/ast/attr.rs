@@ -1,7 +1,8 @@
 use crate::ast::token::grouping::Brackets;
 use crate::ast::{Expr, Path, Token, Trivia};
+use crate::TrivialPrint;
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct Attribute {
     pub pound: Token![#],
     pub style: AttributeStyle,
@@ -9,7 +10,7 @@ pub struct Attribute {
     pub inner: Brackets<AttributeInner>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub struct AttributeInner {
     pub t2: Trivia,
     pub path: Path,
@@ -17,13 +18,13 @@ pub struct AttributeInner {
     pub tlast: Trivia,
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub enum AttributeStyle {
     Outer,
     Inner(Trivia, Token![!]),
 }
 
-#[derive(Debug)]
+#[derive(Debug, TrivialPrint!)]
 pub enum AttributeValue {
     None,
     Value {
