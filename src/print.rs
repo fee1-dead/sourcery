@@ -1,6 +1,5 @@
 use crate::ast::{
-    File, Ident, Item, ItemMod, Module, Path, PathSegment, Trivia, Trivium, VisRestricted,
-    Visibility,
+    Attribute, File, Ident, Item, ItemKind, ItemMod, Module, Path, PathSegment, Trivia, Trivium, VisRestricted, Visibility
 };
 
 pub trait Print {
@@ -119,20 +118,33 @@ impl Print for ItemMod {
     }
 }
 
-impl Print for Item {
+impl Print for ItemKind {
     fn print(&self, dest: &mut String) {
         match self {
-            Item::Mod(im) => im.print(dest),
+            ItemKind::Mod(im) => im.print(dest),
         }
+    }
+}
+
+impl Print for Attribute {
+    fn print(&self, dest: &mut String) {
+        todo!()
+    }
+}
+
+impl Print for Item {
+    fn print(&self, dest: &mut String) {
+        let Item { attrs, kind } = self;
+        attrs.print(dest);
+        kind.print(dest);
     }
 }
 
 impl Print for Module {
     fn print(&self, dest: &mut String) {
-        let Module { t1, items, tlast } = self;
+        let Module { t1, items } = self;
         t1.print(dest);
         items.print(dest);
-        tlast.print(dest);
     }
 }
 

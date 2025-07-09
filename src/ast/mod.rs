@@ -1,62 +1,69 @@
 use std::fmt::Debug;
 
+mod attr;
+pub use attr::{Attribute, AttributeInner, AttributeStyle, AttributeValue};
+mod expr;
+pub use expr::{Expr, ExprKind};
 mod token;
-pub use token::grouping::{Braces, Parens};
-pub use token::{Ident, Trivia, Trivium};
+pub use token::grouping::{Braces, Brackets, Parens};
+pub use token::{Ident, Literal, Trivia, Trivium};
 pub use token::{Token, kw, tokens};
 
 use crate::print::Print;
 
 pub struct List<T> {
-    first: Option<Box<T>>,
-    inner: Vec<(Trivia, T)>,
+    inner: Vec<(T, Trivia)>,
+    last: Option<Box<T>>,
 }
 
 impl<T> Default for List<T> {
     fn default() -> Self {
         List {
-            first: None,
             inner: vec![],
+            last: None,
         }
     }
 }
 
 impl<T: Print> Print for List<T> {
     fn print(&self, dest: &mut String) {
-        let List { first, inner } = self;
-        first.as_deref().print(dest);
-        for (t, x) in inner {
-            t.print(dest);
-            x.print(dest);
-        }
+        let List { inner, last } = self;
+        inner.iter().for_each(|x| x.print(dest));
+        last.as_deref().print(dest);
     }
 }
 
 impl<T: Debug> Debug for List<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut f = f.debug_list();
-        if let Some(first) = &self.first {
-            f.entry(&first);
-        }
-        f.entries(self.inner.iter().flat_map(|(tr, x)| [tr as &dyn Debug, x]))
-            .finish()
+        f.entries(
+            self.inner
+                .iter()
+                .flat_map(|(tr, x)| [tr as &dyn Debug, x])
+                .chain(self.last.iter().map(|x| x as _)),
+        )
+        .finish()
     }
 }
 
 impl<T> List<T> {
     pub fn single(x: T) -> List<T> {
         List {
-            first: Some(Box::new(x)),
             inner: vec![],
+            last: Some(Box::new(x)),
         }
     }
 
     pub fn push(&mut self, t: Trivia, x: T) {
-        if self.first.is_none() {
-            assert!(t.list.is_empty());
-            self.first = Some(Box::new(x));
+        self.inner.push((*self.last.take().unwrap(), t));
+        self.last = Some(Box::new(x));
+    }
+
+    pub fn push_trivia(&mut self, t: Trivia) {
+        if let Some(x) = self.last.take() {
+            self.inner.push((*x, t));
         } else {
-            self.inner.push((t, x));
+            self.inner.last_mut().unwrap().1.list.extend(t.list);
         }
     }
 }
@@ -131,15 +138,20 @@ pub enum Visibility {
 }
 
 #[derive(Debug)]
-pub enum Item {
+pub enum ItemKind {
     Mod(ItemMod),
+}
+
+#[derive(Debug)]
+pub struct Item {
+    pub attrs: List<Attribute>,
+    pub kind: ItemKind,
 }
 
 #[derive(Debug)]
 pub struct Module {
     pub t1: Trivia,
     pub items: List<Item>,
-    pub tlast: Trivia,
 }
 
 #[derive(Debug)]

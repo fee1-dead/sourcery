@@ -4,11 +4,12 @@ use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
 use smol_str::SmolStr;
 
 use crate::Lexer;
-use crate::ast::Token;
 use crate::ast::{Braces, Parens};
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
+use crate::ast::{ItemKind, Literal, Token};
 
+mod attr;
 mod expr;
 
 #[derive(Debug)]
@@ -41,6 +42,9 @@ impl<'src> Parser<'src> {
     pub fn bump(&mut self) -> (Trivia, Token) {
         let (trivia, kind, snippet) = self.lexer.next();
         mem::replace(&mut self.token, (trivia, Token { kind, snippet }))
+    }
+    pub fn peek(&self, f: impl FnOnce(&Token) -> bool) -> bool {
+        f(&self.token.1)
     }
     pub fn check(&self, tok: TokenKind) -> bool {
         self.token.1.kind == tok
@@ -93,6 +97,7 @@ impl<'src> Parser<'src> {
     }
 
     pub fn parse_item(&mut self) -> (Trivia, Item) {
+        let attrs = self.parse_attrs();
         let vis = self.parse_vis();
         if let Some(tbeforemod) = self.eat_ident("mod") {
             let (t1, name) = self.parse_ident();
@@ -104,22 +109,29 @@ impl<'src> Parser<'src> {
             } else {
                 unimplemented!()
             };
-            let (t0, vis) = if let Some((t0, vis)) = vis {
-                (t0, Some((vis, tbeforemod)))
-            } else {
-                (tbeforemod, None)
+            let (t0, attrs, vis) = match (attrs, vis) {
+                (Some((t0, mut attrs)), Some((tsquash, vis))) => {
+                    attrs.push_trivia(tsquash);
+                    (t0, attrs, Some((vis, tbeforemod)))
+                }
+                (Some((t0, attrs)), None) => (t0, attrs, None),
+                (None, Some((t0, vis))) => (t0, List::default(), Some((vis, tbeforemod))),
+                (None, None) => (tbeforemod, List::default(), None),
             };
             (
                 t0,
-                Item::Mod(ItemMod {
-                    vis: vis,
-                    kw: Token![mod],
-                    t1,
-                    name,
-                    t2,
-                    semi,
-                    content,
-                }),
+                Item {
+                    attrs,
+                    kind: ItemKind::Mod(ItemMod {
+                        vis: vis,
+                        kw: Token![mod],
+                        t1,
+                        name,
+                        t2,
+                        semi,
+                        content,
+                    }),
+                },
             )
         } else {
             unimplemented!("{:?}", self.token)
@@ -129,10 +141,9 @@ impl<'src> Parser<'src> {
         let mut module = Module {
             t1: Trivia::default(),
             items: List::default(),
-            tlast: Trivia::default(),
         };
         if let Some(tlast) = self.eat(tok) {
-            module.tlast = tlast;
+            module.items.push_trivia(tlast);
             return module;
         }
         let (t1, item) = self.parse_item();
@@ -141,7 +152,7 @@ impl<'src> Parser<'src> {
 
         loop {
             if let Some(tlast) = self.eat(tok) {
-                module.tlast = tlast;
+                module.items.push_trivia(tlast);
                 return module;
             }
             let (t, i) = self.parse_item();
@@ -208,6 +219,21 @@ impl<'src> Parser<'src> {
             ))
         } else {
             Some((t0, Visibility::Public(Token![pub])))
+        }
+    }
+    pub fn parse_literal(&mut self) -> (Trivia, Literal) {
+        let (t0, token) = self.bump();
+        match token.kind {
+            TokenKind::Literal {
+                kind: _,
+                suffix_start,
+            } => {
+                let suffix_start = suffix_start as usize;
+                let symbol = SmolStr::new(&token.snippet[..suffix_start]);
+                let suffix = SmolStr::new(&token.snippet[suffix_start..]);
+                (t0, Literal { symbol, suffix })
+            }
+            t => panic!("wrong TokenKind for `parse_literal`: {t:?}"),
         }
     }
     pub fn parse_module(&mut self) -> Module {

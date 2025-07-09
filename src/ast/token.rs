@@ -51,6 +51,17 @@ pub(crate) mod grouping {
     }
 
     #[derive(Debug)]
+    pub struct Brackets<T>(pub T);
+
+    impl<T: Print> Print for Brackets<T> {
+        fn print(&self, dest: &mut String) {
+            dest.push('[');
+            self.0.print(dest);
+            dest.push(']');
+        }
+    }
+
+    #[derive(Debug)]
     pub struct Parens<T>(pub T);
 
     impl<T: Print> Print for Parens<T> {
@@ -58,6 +69,22 @@ pub(crate) mod grouping {
             dest.push('(');
             self.0.print(dest);
             dest.push(')');
+        }
+    }
+
+    pub enum AnyGrouping<T> {
+        Braces(Braces<T>),
+        Brackets(Brackets<T>),
+        Parens(Parens<T>),
+    }
+
+    impl<T: Print> Print for AnyGrouping<T> {
+        fn print(&self, dest: &mut String) {
+            match self {
+                AnyGrouping::Braces(b) => b.print(dest),
+                AnyGrouping::Brackets(b) => b.print(dest),
+                AnyGrouping::Parens(p) => p.print(dest),
+            }
         }
     }
 }
@@ -105,7 +132,7 @@ macro_rules! define_tokens {
 
 define_tokens! {
     keywords(Mod(mod), Pub(pub), In(in));
-    tokens(Semi(;), ColonColon(::));
+    tokens(Semi(;), ColonColon(::), Hash(#), Bang(!), Eq(=));
 }
 
 pub struct Ident(pub SmolStr);
@@ -114,4 +141,10 @@ impl Debug for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
+}
+
+#[derive(Debug)]
+pub struct Literal {
+    pub symbol: SmolStr,
+    pub suffix: SmolStr,
 }
