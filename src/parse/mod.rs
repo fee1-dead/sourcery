@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::mem;
 
 use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
@@ -10,9 +9,7 @@ use crate::ast::{Braces, Parens};
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
 
-thread_local! {
-    pub static SRC: RefCell<Option<String>> = const { RefCell::new(None) };
-}
+mod expr;
 
 #[derive(Debug)]
 pub struct Token {
@@ -27,7 +24,6 @@ pub struct Parser<'src> {
 
 impl<'src> Parser<'src> {
     pub fn new(s: &'src str) -> Self {
-        SRC.set(Some(s.to_owned()));
         let lexer = crate::lex::tokenize(s);
         let mut p = Parser {
             lexer,
