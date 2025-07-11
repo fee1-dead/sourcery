@@ -4,7 +4,7 @@ use smol_str::SmolStr;
 
 use crate::TrivialPrint;
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, Clone, TrivialPrint!)]
 pub enum Trivium {
     Whitespace(SmolStr),
     LineComment(SmolStr),
@@ -18,7 +18,7 @@ impl Trivium {
     }
 }
 
-#[derive(Default, TrivialPrint!)]
+#[derive(Default, Clone, TrivialPrint!)]
 pub struct Trivia {
     // TODO make private
     pub list: Vec<Trivium>,
@@ -27,6 +27,9 @@ pub struct Trivia {
 impl Trivia {
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
+    }
+    pub fn len(&self) -> usize {
+        self.list.len()
     }
 }
 
@@ -39,9 +42,11 @@ impl Debug for Trivia {
 }
 
 pub(crate) mod grouping {
+    use std::fmt::Debug;
+
     use crate::print::Print;
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Braces<T>(pub T);
 
     impl<T: Print> Print for Braces<T> {
@@ -52,7 +57,7 @@ pub(crate) mod grouping {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Brackets<T>(pub T);
 
     impl<T: Print> Print for Brackets<T> {
@@ -63,7 +68,7 @@ pub(crate) mod grouping {
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     pub struct Parens<T>(pub T);
 
     impl<T: Print> Print for Parens<T> {
@@ -74,12 +79,46 @@ pub(crate) mod grouping {
         }
     }
 
-    #[derive(crate::TrivialPrint!)]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub enum Delimiter {
+        Braces,
+        Brackets,
+        Parens,
+    }
+
+    #[derive(Clone, crate::TrivialPrint!)]
     #[derive_args(where(T: Print))]
-    pub enum AnyGrouping<T> {
+    pub enum Delimited<T> {
         Braces(Braces<T>),
         Brackets(Brackets<T>),
         Parens(Parens<T>),
+    }
+
+    impl<T> Delimited<T> {
+        pub fn into_inner(self) -> T {
+            let (Delimited::Braces(Braces(x))
+            | Delimited::Brackets(Brackets(x))
+            | Delimited::Parens(Parens(x))) = self;
+            x
+        }
+
+        pub fn delimiter(&self) -> Delimiter {
+            match self {
+                Delimited::Braces(_) => Delimiter::Braces,
+                Delimited::Brackets(_) => Delimiter::Brackets,
+                Delimited::Parens(_) => Delimiter::Parens,
+            }
+        }
+    }
+
+    impl<T: Debug> Debug for Delimited<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Self::Braces(b) => b.fmt(f),
+                Self::Brackets(b) => b.fmt(f),
+                Self::Parens(p) => p.fmt(f),
+            }
+        }
     }
 }
 
@@ -126,10 +165,33 @@ macro_rules! define_tokens {
 
 define_tokens! {
     keywords(Mod(mod), Pub(pub), In(in));
-    tokens(Semi(;), ColonColon(::), Hash(#), Bang(!), Eq(=));
+    tokens(
+        Semi(;),
+        Comma(,),
+        Dot(.),
+        At(@),
+        Pound(#),
+        Tilde(~),
+        Question(?),
+        Colon(:),
+        ColonColon(::),
+        Dollar($),
+        Eq(=),
+        Bang(!),
+        Lt(<),
+        Gt(>),
+        Minus(-),
+        And(&),
+        Or(|),
+        Plus(+),
+        Star(*),
+        Slash(/),
+        Caret(^),
+        Percent(%),
+    );
 }
 
-#[derive(TrivialPrint!)]
+#[derive(Clone, TrivialPrint!)]
 pub struct Ident(pub SmolStr);
 
 impl Debug for Ident {
@@ -138,7 +200,7 @@ impl Debug for Ident {
     }
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, Clone, TrivialPrint!)]
 pub struct Literal {
     pub symbol: SmolStr,
     pub suffix: SmolStr,

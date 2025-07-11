@@ -5,32 +5,35 @@ pub use attr::{Attribute, AttributeInner, AttributeStyle, AttributeValue};
 mod expr;
 pub use expr::{Expr, ExprKind};
 mod token;
-pub use token::grouping::{Braces, Brackets, Parens};
+pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, Trivium};
 pub use token::{Token, kw, tokens};
 
-use crate::print::Print;
 use crate::TrivialPrint;
+use crate::print::Print;
 
+/// A list of items separated by trivia. Does not contain leading trivia
+/// but may contain trailing trivia.
+#[derive(Clone)]
 pub struct List<T> {
     inner: Vec<(T, Trivia)>,
-    last: Option<Box<T>>,
+    tlast: Trivia,
 }
 
 impl<T> Default for List<T> {
     fn default() -> Self {
         List {
             inner: vec![],
-            last: None,
+            tlast: Trivia::default(),
         }
     }
 }
 
 impl<T: Print> Print for List<T> {
     fn print(&self, dest: &mut String) {
-        let List { inner, last } = self;
-        inner.iter().for_each(|x| x.print(dest));
-        last.as_deref().print(dest);
+        let List { inner, tlast } = self;
+        inner.print(dest);
+        tlast.print(dest);
     }
 }
 
@@ -41,7 +44,7 @@ impl<T: Debug> Debug for List<T> {
             self.inner
                 .iter()
                 .flat_map(|(tr, x)| [tr as &dyn Debug, x])
-                .chain(self.last.iter().map(|x| x as _)),
+                .chain((self.tlast.len() != 0).then(|| &self.tlast as &dyn Debug)),
         )
         .finish()
     }
@@ -49,23 +52,33 @@ impl<T: Debug> Debug for List<T> {
 
 impl<T> List<T> {
     pub fn single(x: T) -> List<T> {
-        List {
-            inner: vec![],
-            last: Some(Box::new(x)),
+        let mut l = List::default();
+        l.push_value(x);
+        l
+    }
+
+    fn optimize(&mut self) {
+        if let Some((_, t)) = self.inner.last_mut() {
+            t.list.extend(std::mem::take(&mut self.tlast.list))
         }
+    }
+
+    fn push_value(&mut self, x: T) {
+        self.optimize();
+        self.inner.push((x, Trivia::default()))
     }
 
     pub fn push(&mut self, t: Trivia, x: T) {
-        self.inner.push((*self.last.take().unwrap(), t));
-        self.last = Some(Box::new(x));
+        self.push_trivia(t);
+        self.push_value(x);
     }
 
     pub fn push_trivia(&mut self, t: Trivia) {
-        if let Some(x) = self.last.take() {
-            self.inner.push((*x, t));
-        } else {
-            self.inner.last_mut().unwrap().1.list.extend(t.list);
-        }
+        self.tlast.list.extend(t.list);
+    }
+
+    pub fn into_parts(self) -> (Vec<(T, Trivia)>, Trivia) {
+        (self.inner, self.tlast)
     }
 }
 
@@ -132,7 +145,7 @@ pub struct VisRestricted {
 #[derive(Debug, TrivialPrint!)]
 pub enum Visibility {
     Public {
-        pub_: Token![pub]
+        pub_: Token![pub],
     },
     Restricted {
         pub_: Token![pub],
@@ -155,6 +168,7 @@ pub struct Item {
 #[derive(Debug, TrivialPrint!)]
 pub struct Module {
     pub t1: Trivia,
+    pub attrs: List<Attribute>,
     pub items: List<Item>,
 }
 

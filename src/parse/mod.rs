@@ -1,16 +1,139 @@
-use std::mem;
+use std::{mem, vec};
 
-use ra_ap_rustc_lexer::{Cursor, FrontmatterAllowed, TokenKind};
+use ra_ap_rustc_lexer::TokenKind;
 use smol_str::SmolStr;
 
-use crate::Lexer;
-use crate::ast::{Braces, Parens};
+use crate::ast::{Braces, Delimited, Delimiter, Parens};
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
 use crate::ast::{ItemKind, Literal, Token};
+use crate::parse::attr::AttrKind;
+use crate::parse::glue::Gluer;
+use crate::{Print, TrivialPrint, lex};
 
 mod attr;
 mod expr;
+mod glue;
+
+#[derive(Default, Clone, Debug, TrivialPrint!)]
+pub struct TokenStream {
+    pub t1: Trivia,
+    pub tokens: List<TokenTree>,
+}
+
+impl TokenStream {
+    pub fn into_iter(self) -> TokenStreamIter {
+        let (v, last) = self.tokens.into_parts();
+        TokenStreamIter {
+            tprev: self.t1,
+            inner: v.into_iter(),
+            last,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct TokenStreamIter {
+    tprev: Trivia,
+    inner: vec::IntoIter<(TokenTree, Trivia)>,
+    last: Trivia,
+}
+
+pub trait TokenIterator {
+    fn next(&mut self) -> (Trivia, TokenTree);
+    fn snapshot(&self) -> Box<dyn TokenIterator + '_>;
+}
+
+impl TokenIterator for TokenStreamIter {
+    fn snapshot(&self) -> Box<dyn TokenIterator + '_> {
+        Box::new(self.clone())
+    }
+    fn next(&mut self) -> (Trivia, TokenTree) {
+        match self.inner.next() {
+            Some((tt, trivia)) => {
+                let t = mem::replace(&mut self.tprev, trivia);
+                (t, tt)
+            }
+            None => {
+                let mut prev = mem::take(&mut self.tprev);
+                prev.list.extend(mem::take(&mut self.last).list);
+                (prev, TokenTree::Eof)
+            }
+        }
+    }
+}
+
+impl TokenIterator for Gluer<'_> {
+    fn snapshot(&self) -> Box<dyn TokenIterator + '_> {
+        Box::new(self.snapshot())
+    }
+    fn next(&mut self) -> (Trivia, TokenTree) {
+        Gluer::next(self)
+    }
+}
+
+#[derive(Clone, Debug, TrivialPrint!)]
+pub enum TokenTree {
+    Group(Box<Delimited<TokenStream>>),
+    Punct(Punct),
+    Ident(Ident),
+    RawIdent(Ident),
+    Lifetime(Ident),
+    RawLifetime(Ident),
+    Literal(Literal),
+    Eof,
+}
+
+impl TokenTree {
+    pub fn is_delim(&self, delim: Delimiter) -> bool {
+        match self {
+            TokenTree::Group(delimited) => delimited.delimiter() == delim,
+            _ => false
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Punct {
+    Semi,
+    Comma,
+    Dot,
+    At,
+    Pound,
+    Tilde,
+    Question,
+    Colon,
+    ColonColon,
+    Dollar,
+    Eq,
+    Bang,
+    Lt,
+    Gt,
+    Minus,
+    And,
+    Or,
+    Plus,
+    Star,
+    Slash,
+    Caret,
+    Percent,
+}
+
+macro_rules! impl_print_for_punct {
+    ($($Variant:ident),*$(,)?) => {
+        impl Print for Punct {
+            fn print(&self, out: &mut String) {
+                match self {
+                    $( Punct::$Variant => crate::ast::tokens::$Variant.print(out), )*
+                }
+            }
+        }
+    };
+}
+impl_print_for_punct!(
+    Semi, Comma, Dot, At, Pound, Tilde, Question, Colon, ColonColon, Dollar, Eq, Bang, Lt, Gt,
+    Minus, And, Or, Plus, Star, Slash, Caret, Percent,
+);
 
 #[derive(Debug)]
 pub struct Token {
@@ -18,93 +141,114 @@ pub struct Token {
     snippet: SmolStr,
 }
 
+impl Print for Token {
+    fn print(&self, dest: &mut String) {
+        self.snippet.print(dest);
+    }
+}
+
 pub struct Parser<'src> {
-    lexer: Lexer<'src>,
-    token: (Trivia, Token),
+    tokens: Box<dyn TokenIterator + 'src>,
+    token: (Trivia, TokenTree),
 }
 
 impl<'src> Parser<'src> {
-    pub fn new(s: &'src str) -> Self {
-        let lexer = crate::lex::tokenize(s);
+    fn create(x: impl TokenIterator + 'src) -> Self {
         let mut p = Parser {
-            lexer,
-            token: (
-                Trivia::default(),
-                Token {
-                    kind: TokenKind::Whitespace,
-                    snippet: SmolStr::new_static(""),
-                },
-            ),
+            tokens: Box::new(x),
+            token: (Trivia::default(), TokenTree::Eof),
         };
         p.bump();
         p
     }
-    pub fn bump(&mut self) -> (Trivia, Token) {
-        let (trivia, kind, snippet) = self.lexer.next();
-        mem::replace(&mut self.token, (trivia, Token { kind, snippet }))
+    pub fn new(s: &'src str) -> Self {
+        Parser::create(Gluer::new(lex::tokenize(s)))
     }
-    pub fn peek(&self, f: impl FnOnce(&Token) -> bool) -> bool {
+    pub fn bump(&mut self) -> (Trivia, TokenTree) {
+        mem::replace(&mut self.token, self.tokens.next())
+    }
+    pub fn snapshot(&'src self) -> Self {
+        Parser {
+            tokens: self.tokens.snapshot(),
+            token: self.token.clone(),
+        }
+    }
+    pub fn peek(&self, f: impl FnOnce(&TokenTree) -> bool) -> bool {
         f(&self.token.1)
     }
-    pub fn check(&self, tok: TokenKind) -> bool {
-        self.token.1.kind == tok
-    }
+    #[must_use]
     pub fn check_ident(&self, s: &str) -> bool {
-        self.check(TokenKind::Ident) && self.token.1.snippet == s
+        matches!(&self.token.1, TokenTree::Ident(Ident(id)) if s == id)
     }
-    pub fn eat(&mut self, tok: TokenKind) -> Option<Trivia> {
-        self.check(tok).then(|| self.bump().0)
+    #[must_use]
+    pub fn check_punct(&mut self, punct: Punct) -> bool {
+        matches!(self.token.1, TokenTree::Punct(got) if got == punct)
     }
-    fn lookahead<R>(&mut self, n: usize, x: impl FnOnce(&(Trivia, Token)) -> R) -> R {
-        let snapshot = self.lexer.inner.as_str();
-        let pos_before = self.lexer.cur_pos;
-        let mut restore = None;
-        for _ in 0..n {
-            let orig = self.bump();
-            if restore.is_none() {
-                restore = Some(orig);
-            }
-        }
-
-        let r = x(&self.token);
-        self.lexer.inner = Cursor::new(snapshot, FrontmatterAllowed::No);
-        self.lexer.cur_pos = pos_before;
-        if let Some(orig) = restore {
-            self.token = orig;
-        }
-        r
+    pub fn eat_punct(&mut self, punct: Punct) -> Option<Trivia> {
+        self.check_punct(punct).then(|| self.bump().0)
     }
-
-    /// eat two tokens, expecting no trivia between them.
-    pub fn eat2(&mut self, tok1: TokenKind, tok2: TokenKind) -> Option<Trivia> {
-        if self.check(tok1) && self.lookahead(1, |(tr0, tok)| tr0.is_empty() && tok.kind == tok2) {
-            let (t, _) = self.bump();
-            self.bump();
-            Some(t)
+    pub fn eat_delim<T>(
+        &mut self,
+        delim: Delimiter,
+        f: impl FnOnce(Trivia, Parser<'src>) -> T,
+    ) -> Option<T> {
+        if let Some((t, TokenTree::Group(tokens))) =
+            self.eat(|t| matches!(t, TokenTree::Group(tokens) if tokens.delimiter() == delim))
+        {
+            let p = Parser::create(tokens.into_inner().into_iter());
+            Some(f(t, p))
         } else {
             None
         }
     }
+    pub fn eat_eof(&mut self) -> Option<Trivia> {
+        self.eat(|tt| matches!(tt, TokenTree::Eof)).map(|(t, _)| t)
+    }
+    pub fn eat_literal(&mut self) -> Option<(Trivia, Literal)> {
+        self.eat(|tt| matches!(tt, TokenTree::Literal(_))).map(|(t, tt)| (t, match tt {
+            TokenTree::Literal(l) => l,
+            _ => unreachable!()
+        }))
+    }
+    pub fn eat(&mut self, f: impl FnOnce(&TokenTree) -> bool) -> Option<(Trivia, TokenTree)> {
+        self.peek(f).then(|| self.bump())
+    }
+    fn peek_nth<R>(&mut self, n: usize, x: impl FnOnce(&(Trivia, TokenTree)) -> R) -> R {
+        let mut parser = self.snapshot();
+        for _ in 0..n {
+            parser.bump();
+        }
+        x(&parser.token)
+    }
 
-    pub fn eat_ident(&mut self, s: &str) -> Option<Trivia> {
-        self.check_ident(s).then(|| self.bump().0)
+    pub fn eat_ident(&mut self, s: &str) -> Option<(Trivia, Ident)> {
+        self.check_ident(s).then(|| {
+            let (t, tt) = self.bump();
+            let TokenTree::Ident(id) = tt else {
+                unreachable!()
+            };
+            (t, id)
+        })
     }
 
     pub fn parse_ident(&mut self) -> (Trivia, Ident) {
-        assert!(self.check(TokenKind::Ident));
         let (t, tok) = self.bump();
-        (t, Ident(tok.snippet))
+        let TokenTree::Ident(id) = tok else {
+            panic!("expected ident")
+        };
+        (t, id)
     }
 
     pub fn parse_item(&mut self) -> (Trivia, Item) {
-        let attrs = self.parse_attrs();
+        let attrs = self.parse_attrs(AttrKind::Inner);
         let vis = self.parse_vis();
-        if let Some(tbeforemod) = self.eat_ident("mod") {
+        if let Some((tbeforemod, _)) = self.eat_ident("mod") {
             let (t1, name) = self.parse_ident();
-            let (t2, semi, content) = if let Some(t2) = self.eat(TokenKind::Semi) {
+            let (t2, semi, content) = if let Some(t2) = self.eat_punct(Punct::Semi) {
                 (t2, Some(Token![;]), None)
-            } else if let Some(t2) = self.eat(TokenKind::OpenBrace) {
-                let module = self.parse_module_before(TokenKind::CloseBrace);
+            } else if let Some((t2, module)) =
+                self.eat_delim(Delimiter::Braces, |t2, mut this| (t2, this.parse_module()))
+            {
                 (t2, None, Some(Braces(module)))
             } else {
                 unimplemented!()
@@ -137,45 +281,23 @@ impl<'src> Parser<'src> {
             unimplemented!("{:?}", self.token)
         }
     }
-    pub fn parse_module_before(&mut self, tok: TokenKind) -> Module {
-        let mut module = Module {
-            t1: Trivia::default(),
-            items: List::default(),
-        };
-        if let Some(tlast) = self.eat(tok) {
-            module.items.push_trivia(tlast);
-            return module;
-        }
-        let (t1, item) = self.parse_item();
-        module.t1 = t1;
-        module.items = List::single(item);
 
-        loop {
-            if let Some(tlast) = self.eat(tok) {
-                module.items.push_trivia(tlast);
-                return module;
-            }
-            let (t, i) = self.parse_item();
-            module.items.push(t, i);
-        }
-    }
     pub fn parse_path_segment(&mut self) -> (Trivia, PathSegment) {
         let (t0, ident) = self.parse_ident();
         (t0, PathSegment { ident })
     }
     pub fn parse_path(&mut self) -> (Trivia, Path) {
-        let (t0, leading_colon, seg1) =
-            if let Some(t0) = self.eat2(TokenKind::Colon, TokenKind::Colon) {
-                let (t1, seg1) = self.parse_path_segment();
-                (t0, Some((Token![::], t1)), seg1)
-            } else {
-                let (t0, seg1) = self.parse_path_segment();
-                (t0, None, seg1)
-            };
+        let (t0, leading_colon, seg1) = if let Some(t0) = self.eat_punct(Punct::ColonColon) {
+            let (t1, seg1) = self.parse_path_segment();
+            (t0, Some((Token![::], t1)), seg1)
+        } else {
+            let (t0, seg1) = self.parse_path_segment();
+            (t0, None, seg1)
+        };
 
         let mut rest = vec![];
 
-        while let Some(t1) = self.eat2(TokenKind::Colon, TokenKind::Colon) {
+        while let Some(t1) = self.eat_punct(Punct::ColonColon) {
             let (t2, seg) = self.parse_path_segment();
             rest.push((t1, Token![::], t2, seg));
         }
@@ -191,53 +313,60 @@ impl<'src> Parser<'src> {
     }
 
     pub fn parse_vis(&mut self) -> Option<(Trivia, Visibility)> {
-        let t0 = self.eat_ident("pub")?;
-        if let Some(t1) = self.eat(TokenKind::OpenParen) {
-            let (t2, in_, path) = if let Some(t2) = self.eat_ident("in") {
-                let (t2_5, path) = self.parse_path();
-                (t2, Some((Token![in], t2_5)), path)
-            } else {
-                let (t2, ident) = self.parse_ident();
-                (
-                    t2,
-                    None,
-                    Path {
-                        leading_colon: None,
-                        seg1: PathSegment { ident },
-                        rest: vec![],
-                    },
-                )
-            };
-            let t3 = self.eat(TokenKind::CloseParen).unwrap();
-            Some((
-                t0,
+        let (t0, _) = self.eat_ident("pub")?;
+        let vis = self
+            .eat_delim(Delimiter::Parens, |t1, mut this| {
+                let (t2, in_, path) = if let Some((t2, _)) = this.eat_ident("in") {
+                    let (t2_5, path) = this.parse_path();
+                    (t2, Some((Token![in], t2_5)), path)
+                } else {
+                    let (t2, ident) = this.parse_ident();
+                    (
+                        t2,
+                        None,
+                        Path {
+                            leading_colon: None,
+                            seg1: PathSegment { ident },
+                            rest: vec![],
+                        },
+                    )
+                };
+                let t3 = this.eat_eof().unwrap();
+
                 Visibility::Restricted {
                     pub_: Token![pub],
                     t1,
                     parens: Parens(VisRestricted { t2, in_, path, t3 }),
-                },
-            ))
-        } else {
-            Some((t0, Visibility::Public { pub_: Token![pub] }))
-        }
-    }
-    pub fn parse_literal(&mut self) -> (Trivia, Literal) {
-        let (t0, token) = self.bump();
-        match token.kind {
-            TokenKind::Literal {
-                kind: _,
-                suffix_start,
-            } => {
-                let suffix_start = suffix_start as usize;
-                let symbol = SmolStr::new(&token.snippet[..suffix_start]);
-                let suffix = SmolStr::new(&token.snippet[suffix_start..]);
-                (t0, Literal { symbol, suffix })
-            }
-            t => panic!("wrong TokenKind for `parse_literal`: {t:?}"),
-        }
+                }
+            })
+            .unwrap_or_else(|| Visibility::Public { pub_: Token![pub] });
+
+        Some((t0, vis))
     }
     pub fn parse_module(&mut self) -> Module {
-        self.parse_module_before(TokenKind::Eof)
+        let (t1, attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        let mut module = Module {
+            t1,
+            attrs,
+            items: List::default(),
+        };
+        
+        if let Some(tlast) = self.eat_eof() {
+            module.items.push_trivia(tlast);
+            return module;
+        }
+        let (t1, item) = self.parse_item();
+        module.attrs.push_trivia(t1);
+        module.items = List::single(item);
+
+        loop {
+            if let Some(tlast) = self.eat_eof() {
+                module.items.push_trivia(tlast);
+                return module;
+            }
+            let (t, i) = self.parse_item();
+            module.items.push(t, i);
+        }
     }
 }
 

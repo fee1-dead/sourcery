@@ -62,6 +62,12 @@ impl<T: Print> Print for &'_ T {
     }
 }
 
+impl<T: Print> Print for Box<T> {
+    fn print(&self, dest: &mut String) {
+        T::print(self, dest)
+    }
+}
+
 impl Print for SmolStr {
     fn print(&self, dest: &mut String) {
         dest.push_str(self);

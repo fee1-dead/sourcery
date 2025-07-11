@@ -1,6 +1,6 @@
 use crate::ast::{Trivia, Trivium};
 
-use ra_ap_rustc_lexer as rustc_lexer;
+use ra_ap_rustc_lexer::{self as rustc_lexer, FrontmatterAllowed};
 
 use rustc_lexer::{Cursor, TokenKind};
 use smol_str::SmolStr;
@@ -11,7 +11,11 @@ pub struct Lexer<'src> {
     pub cur_pos: usize,
 }
 
+
 impl<'src> Lexer<'src> {
+    pub fn snapshot(&self) -> Lexer<'src> {
+        Lexer { orig_str: self.orig_str, inner: Cursor::new(self.inner.as_str(), FrontmatterAllowed::No), cur_pos: self.cur_pos }
+    }
     pub fn next(&mut self) -> (Trivia, TokenKind, SmolStr) {
         use TokenKind::*;
         let mut trivia = Trivia { list: vec![] };

@@ -1,42 +1,75 @@
-use ra_ap_rustc_lexer::TokenKind;
+use crate::ast::{
+    Attribute, AttributeInner, AttributeStyle, AttributeValue, Brackets, Delimiter,
+    List, Token, Trivia,
+};
+use crate::parse::{Parser, Punct, TokenTree};
 
-use crate::ast::{Attribute, AttributeInner, AttributeStyle, AttributeValue, Brackets, List, Token, Trivia};
-use crate::parse::Parser;
+#[derive(Clone, Copy)]
+pub enum AttrKind {
+    Inner,
+    Outer,
+}
 
 impl<'src> Parser<'src> {
-    pub fn maybe_parse_attr(&mut self) -> Option<(Trivia, Attribute)> {
-        let t0 = self.eat(TokenKind::Pound)?;
-        let style = if let Some(t) = self.eat(TokenKind::Bang) {
+    pub fn maybe_parse_attr(&mut self, kind: AttrKind) -> Option<(Trivia, Attribute)> {
+        let is_attr = self.check_punct(Punct::Pound)
+            && match kind {
+                AttrKind::Inner => self.peek_nth(1, |(_, t)| t.is_delim(Delimiter::Brackets)),
+                AttrKind::Outer => {
+                    self.peek_nth(1, |(_, t)| matches!(t, TokenTree::Punct(Punct::Bang)))
+                        && self.peek_nth(2, |(_, t)| t.is_delim(Delimiter::Brackets))
+                }
+            };
+        if !is_attr {
+            return None;
+        }
+        let t0 = self.eat_punct(Punct::Pound)?;
+        let style = if let Some(t) = self.eat_punct(Punct::Bang) {
             AttributeStyle::Inner(t, Token![!])
         } else {
             AttributeStyle::Outer
         };
-        let t1 = self.eat(TokenKind::OpenBracket).unwrap();
-        
-        let inner = self.parse_attr_inner();
-        Some((t0, Attribute {
-            pound: Token![#],
-            style,
-            t1,
-            inner: Brackets(inner),
-        }))
+        let (t1, inner) = self
+            .eat_delim(Delimiter::Brackets, |t1, mut this| {
+                (t1, this.parse_attr_inner())
+            })
+            .unwrap();
+
+        Some((
+            t0,
+            Attribute {
+                pound: Token![#],
+                style,
+                t1,
+                inner: Brackets(inner),
+            },
+        ))
     }
     pub fn parse_attr_inner(&mut self) -> AttributeInner {
         let (t2, path) = self.parse_path();
-        let value = if let Some(t3) = self.eat(TokenKind::Eq) {
-            // TODO
-            let (t4, expr) = self.parse_atom_expr();
-            AttributeValue::Value { t3, eq: Token![=], t4, expr }
+        let value = if let Some(t3) = self.eat_punct(Punct::Eq) {
+            let (t4, expr) = self.parse_expr();
+            AttributeValue::Value {
+                t3,
+                eq: Token![=],
+                t4,
+                expr,
+            }
         } else {
             AttributeValue::None
         };
-        let tlast = self.eat(TokenKind::CloseBracket).unwrap();
-        AttributeInner { t2, path, value, tlast }
+        let tlast = self.eat_eof().unwrap();
+        AttributeInner {
+            t2,
+            path,
+            value,
+            tlast,
+        }
     }
-    pub fn parse_attrs(&mut self) -> Option<(Trivia, List<Attribute>)> {
-        let (t0, attr) = self.maybe_parse_attr()?;
+    pub fn parse_attrs(&mut self, kind: AttrKind) -> Option<(Trivia, List<Attribute>)> {
+        let (t0, attr) = self.maybe_parse_attr(kind)?;
         let mut list = List::single(attr);
-        while let Some((t, attr)) = self.maybe_parse_attr() {
+        while let Some((t, attr)) = self.maybe_parse_attr(kind) {
             list.push(t, attr);
         }
         Some((t0, list))
