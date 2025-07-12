@@ -1,6 +1,6 @@
 use crate::ast::{
-    Attribute, AttributeInner, AttributeStyle, AttributeValue, Brackets, Delimiter,
-    List, Token, Trivia,
+    Attribute, AttributeInner, AttributeStyle, AttributeValue, Brackets, Delimiter, List, Token,
+    Trivia,
 };
 use crate::parse::{Parser, Punct, TokenTree};
 

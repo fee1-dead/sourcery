@@ -270,7 +270,7 @@ impl<'src> Parser<'src> {
                 Item {
                     attrs,
                     kind: ItemKind::Mod(ItemMod {
-                        vis: vis,
+                        vis,
                         kw: Token![mod],
                         t1,
                         name,
@@ -342,7 +342,7 @@ impl<'src> Parser<'src> {
                     parens: Parens(VisRestricted { t2, in_, path, t3 }),
                 }
             })
-            .unwrap_or_else(|| Visibility::Public { pub_: Token![pub] });
+            .unwrap_or(Visibility::Public { pub_: Token![pub] });
 
         Some((t0, vis))
     }

@@ -44,7 +44,7 @@ impl<T: Debug> Debug for List<T> {
             self.inner
                 .iter()
                 .flat_map(|(tr, x)| [tr as &dyn Debug, x])
-                .chain((self.tlast.len() != 0).then(|| &self.tlast as &dyn Debug)),
+                .chain((!self.tlast.is_empty()).then_some(&self.tlast as &dyn Debug)),
         )
         .finish()
     }

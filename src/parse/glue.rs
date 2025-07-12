@@ -100,7 +100,7 @@ impl<'src> Gluer<'src> {
             }
             TokenKind::LineComment { .. }
             | TokenKind::BlockComment { .. }
-            | TokenKind::Whitespace { .. } => {
+            | TokenKind::Whitespace => {
                 unreachable!("should be already handled in the lexer")
             }
             TokenKind::InvalidIdent

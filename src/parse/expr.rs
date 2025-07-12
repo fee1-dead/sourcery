@@ -12,7 +12,13 @@ impl<'src> super::Parser<'src> {
     fn parse_atom_expr(&mut self) -> (Trivia, Expr) {
         if let Some((t, l)) = self.eat_literal() {
             // TODO
-            (t, Expr { attributes: List::default(), kind: ExprKind::Literal(l) })
+            (
+                t,
+                Expr {
+                    attributes: List::default(),
+                    kind: ExprKind::Literal(l),
+                },
+            )
         } else {
             panic!("not an expr anymore")
         }

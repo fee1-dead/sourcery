@@ -152,10 +152,10 @@ macro_rules! define_tokens {
         #[macro_export]
         macro_rules! Token {
             $(
-                [$kt] => (crate::ast::kw::$kname);
+                [$kt] => ($crate::ast::kw::$kname);
             )*
             $(
-                [$tt] => (crate::ast::tokens::$tname);
+                [$tt] => ($crate::ast::tokens::$tname);
             )*
         }
 

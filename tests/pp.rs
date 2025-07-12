@@ -53,7 +53,9 @@ fn main() -> color_eyre::Result<ExitCode> {
             let mut content2 = String::new();
             sourcery::Print::print(&parsed, &mut content2);
             if content != content2 {
-                return Err(Failed::from(format!("different content\norig   : {content:?}\nprinted: {content2:?}")));
+                return Err(Failed::from(format!(
+                    "different content\norig   : {content:?}\nprinted: {content2:?}"
+                )));
             }
 
             Ok(())

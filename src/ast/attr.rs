@@ -1,7 +1,7 @@
+use crate::TrivialPrint;
 use crate::ast::token::grouping::Brackets;
 use crate::ast::{Delimited, Expr, Path, Token, Trivia};
 use crate::parse::TokenStream;
-use crate::TrivialPrint;
 
 #[derive(Debug, TrivialPrint!)]
 pub struct Attribute {

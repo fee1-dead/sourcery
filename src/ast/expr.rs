@@ -1,5 +1,5 @@
-use crate::ast::{Attribute, List};
 use crate::TrivialPrint;
+use crate::ast::{Attribute, List};
 
 use super::Literal;
 

@@ -9,16 +9,16 @@ macro_rules! TrivialPrint {
     (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
         $var_name:ident($vis:vis $FieldTy:ty$(,)?)$(;)?
     $(,$($tt:tt)*)?)) => {
-        crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a ) => {
-            crate::print::Print::print(a, $dest);
+        $crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a ) => {
+            $crate::print::Print::print(a, $dest);
         }], $self, $dest, $($($tt)*)?))
     };
     (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
         $var_name:ident($vis:vis $FieldTy:ty, $vis2:vis $FieldTy2:ty$(,)?)$(;)?
     $(,$($tt:tt)*)?)) => {
-        crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a, b ) => {
-            crate::print::Print::print(a, $dest);
-            crate::print::Print::print(b, $dest);
+        $crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a, b ) => {
+            $crate::print::Print::print(a, $dest);
+            $crate::print::Print::print(b, $dest);
         }], $self, $dest, $($($tt)*)?))
     };
     (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
@@ -26,27 +26,27 @@ macro_rules! TrivialPrint {
             $($field_vis:vis $field_name:ident: $FieldTy:ty),*$(,)?
         }
     $(,$($tt:tt)*)?)) => {
-        crate::TrivialPrint!(@gen_match([$($existing)* $var_name { $($field_name),* } => {
-            $(crate::print::Print::print($field_name, $dest);)*
+        $crate::TrivialPrint!(@gen_match([$($existing)* $var_name { $($field_name),* } => {
+            $($crate::print::Print::print($field_name, $dest);)*
         }], $self, $dest, $($($tt)*)?))
     };
     (@gen_match([$($existing:tt)*], $self:ident, $dest:ident, $var_name:ident$(,$($tt:tt)*)?)) => {
-        crate::TrivialPrint!(@gen_match([$($existing)* $var_name => {}], $self, $dest, $($($tt)*)?))
+        $crate::TrivialPrint!(@gen_match([$($existing)* $var_name => {}], $self, $dest, $($($tt)*)?))
     };
     ($(#[derive_args(where($($where:tt)*))])? $vis:vis struct $name:ident $(<$($GenTy:ident),*$(,)?>)? $($tt:tt)*) => {
-        impl$(<$($GenTy),*>)? crate::print::Print for $name $(<$($GenTy),*>)? $(where $($where)*)? {
+        impl$(<$($GenTy),*>)? $crate::print::Print for $name $(<$($GenTy),*>)? $(where $($where)*)? {
             fn print(&self, dest: &mut String) {
-                crate::TrivialPrint!(@gen_match([], self, dest, $name $($tt)*))
+                $crate::TrivialPrint!(@gen_match([], self, dest, $name $($tt)*))
             }
         }
     };
     ($(#[derive_args(where($($where:tt)*))])? $vis:vis enum $name:ident $(<$($GenTy:ident),*$(,)?>)? {
         $($tt:tt)*
     }) => {
-        impl$(<$($GenTy),*>)? crate::print::Print for $name $(<$($GenTy),*>)? $(where $($where)*)? {
+        impl$(<$($GenTy),*>)? $crate::print::Print for $name $(<$($GenTy),*>)? $(where $($where)*)? {
             fn print(&self, dest: &mut String) {
                 use $name::*;
-                crate::TrivialPrint!(@gen_match([], self, dest, $($tt)*))
+                $crate::TrivialPrint!(@gen_match([], self, dest, $($tt)*))
             }
         }
     };
