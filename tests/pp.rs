@@ -2,31 +2,48 @@
 
 use std::backtrace::Backtrace;
 use std::cell::Cell;
-use std::fs::{self, read_dir};
+use std::env::current_dir;
+use std::fs::read_to_string;
 use std::panic::catch_unwind;
 use std::path::Path;
 use std::process::ExitCode;
 
 use libtest_mimic::{Arguments, Failed, Trial};
+use walkdir::WalkDir;
 
-fn main() -> color_eyre::Result<ExitCode> {
-    let args = Arguments::from_args();
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+static VARIANTS: &[Variant] = &[
+    Variant {
+        name: "FilePrint",
+        runner: |content| {
+            let file = sourcery::parse(&content);
+            let mut content2 = String::new();
+            sourcery::Print::print(&file, &mut content2);
+            if content != content2 {
+                panic!("different content\norig   : {content:?}\nprinted: {content2:?}");
+            }
+        },
+    },
+    Variant {
+        name: "TokenStreamPrint",
+        runner: |content| {
+            let file = sourcery::parse_to_tokenstream(&content);
+            let mut content2 = String::new();
+            sourcery::Print::print(&file, &mut content2);
+            if content != content2 {
+                panic!("different content\norig   : {content:?}\nprinted: {content2:?}");
+            }
+        },
+    },
+];
 
-    let read = read_dir(manifest_dir.join("tests/pp"))?;
+pub struct Variant {
+    name: &'static str,
+    runner: fn(String),
+}
 
-    let mut tests = vec![];
-
-    for dir in read {
-        let ent = dir?;
-        if !ent.file_type()?.is_file() {
-            // TODO support recursive
-            continue;
-        }
-        let file_name = ent.file_name();
-        let s = file_name.to_string_lossy();
-        let path = ent.path();
-        tests.push(Trial::test(s.clone(), move || {
+impl Variant {
+    pub fn make_trial(&'static self, path: String, content: String) -> Trial {
+        let runner = move || {
             thread_local! {
                 static BACKTRACE: Cell<Option<Backtrace>> = const { Cell::new(None) };
             }
@@ -36,9 +53,8 @@ fn main() -> color_eyre::Result<ExitCode> {
                 BACKTRACE.with(move |b| b.set(Some(trace)));
             }));
 
-            let content = fs::read_to_string(&path).map_err(Failed::from)?;
-            let parsed = match catch_unwind(|| sourcery::parse(&content)) {
-                Ok(parsed) => parsed,
+            match catch_unwind(move || (self.runner)(content)) {
+                Ok(()) => Ok(()),
                 Err(msg) => {
                     let msg = msg
                         .downcast_ref::<String>()
@@ -46,20 +62,38 @@ fn main() -> color_eyre::Result<ExitCode> {
                         .or_else(|| msg.downcast_ref::<&str>().map(|x| *x))
                         .unwrap_or("unknown panic message");
                     let b = BACKTRACE.with(|b| b.take()).unwrap();
-                    return Err(Failed::from(format!("panicked while parsing: {msg}\n{b}")));
+                    Err(Failed::from(format!(
+                        "panicked while running test: {msg}\n{b}"
+                    )))
                 }
-            };
-
-            let mut content2 = String::new();
-            sourcery::Print::print(&parsed, &mut content2);
-            if content != content2 {
-                return Err(Failed::from(format!(
-                    "different content\norig   : {content:?}\nprinted: {content2:?}"
-                )));
             }
+        };
 
-            Ok(())
-        }))
+        Trial::test(format!("{:<18} {path}", self.name), runner)
+    }
+}
+
+fn main() -> color_eyre::Result<ExitCode> {
+    let args = Arguments::from_args();
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let current_dir = current_dir()?;
+    let walk = WalkDir::new(manifest_dir.join("tests/pp"));
+
+    let mut tests = vec![];
+
+    for dir in walk {
+        let ent = dir?;
+        if !ent.file_type().is_file() {
+            continue;
+        }
+        let path = ent.into_path();
+        let name = path.strip_prefix(&current_dir)?.display().to_string();
+        let content = read_to_string(&path)?;
+        tests.extend(
+            VARIANTS
+                .iter()
+                .map(|v| v.make_trial(name.clone(), content.clone())),
+        );
     }
 
     Ok(libtest_mimic::run(&args, tests).exit_code())

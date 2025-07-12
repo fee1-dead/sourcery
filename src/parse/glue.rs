@@ -31,9 +31,14 @@ impl<'src> Gluer<'src> {
         }
         ret
     }
-    pub fn collect_until(&mut self, kind: TokenKind) -> TokenStream {
+    pub fn collect(&mut self) -> TokenStream {
+        self.collect_until_after(TokenKind::Eof)
+    }
+    pub fn collect_until_after(&mut self, kind: TokenKind) -> TokenStream {
         let mut stream = TokenStream::default();
         if self.peek().1 == kind {
+            let triv = self.lexer.next().0;
+            stream.tokens.push_trivia(triv);
             return stream;
         }
         let (t1, tt) = self.next();
@@ -43,6 +48,8 @@ impl<'src> Gluer<'src> {
             let (t, tt) = self.next();
             stream.tokens.push(t, tt);
         }
+        let triv = self.lexer.next().0;
+        stream.tokens.push_trivia(triv);
         stream
     }
     pub fn next(&mut self) -> (Trivia, TokenTree) {
@@ -56,10 +63,7 @@ impl<'src> Gluer<'src> {
                     TokenKind::OpenBracket => (TokenKind::CloseBracket, |stream: TokenStream| Delimited::Brackets(Brackets(stream))),
                     _ => unreachable!(),
                 };
-                let mut stream = self.collect_until(until);
-                let triv = self.lexer.next().0;
-                stream.tokens.push_trivia(triv);
-                TokenTree::Group(Box::new(delim(stream)))
+                TokenTree::Group(Box::new(delim(self.collect_until_after(until))))
             }
             TokenKind::At => TokenTree::Punct(Punct::At),
             TokenKind::Ident => TokenTree::Ident(Ident(s)),

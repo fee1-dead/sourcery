@@ -378,3 +378,7 @@ pub fn parse(s: &str) -> File {
     let module = p.parse_module();
     File { module }
 }
+
+pub fn parse_to_tokenstream(s: &str) -> TokenStream {
+    Gluer::new(lex::tokenize(s)).collect()
+}
