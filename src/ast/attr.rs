@@ -1,5 +1,6 @@
 use crate::ast::token::grouping::Brackets;
-use crate::ast::{Expr, Path, Token, Trivia};
+use crate::ast::{Delimited, Expr, Path, Token, Trivia};
+use crate::parse::TokenStream;
 use crate::TrivialPrint;
 
 #[derive(Debug, TrivialPrint!)]
@@ -33,6 +34,5 @@ pub enum AttributeValue {
         t4: Trivia,
         expr: Expr,
     },
-    // TODO tokenstream
-    // List(AnyGrouping<>)
+    List(Trivia, Delimited<TokenStream>),
 }

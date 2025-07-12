@@ -55,6 +55,8 @@ impl<'src> Parser<'src> {
                 t4,
                 expr,
             }
+        } else if let Some((val, tt)) = self.eat_delimited() {
+            AttributeValue::List(val, tt)
         } else {
             AttributeValue::None
         };

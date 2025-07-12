@@ -89,6 +89,24 @@ impl<'src> Gluer<'src> {
             TokenKind::Eq => {
                 (t0, TokenTree::Punct(Punct::Eq))
             }
+            TokenKind::Tilde => {
+                (t0, TokenTree::Punct(Punct::Tilde))
+            }
+            TokenKind::Dollar => {
+                (t0, TokenTree::Punct(Punct::Dollar))
+            }
+            TokenKind::Percent => {
+                (t0, TokenTree::Punct(Punct::Percent))
+            }
+            TokenKind::Caret => {
+                (t0, TokenTree::Punct(Punct::Caret))
+            }
+            TokenKind::And => {
+                (t0, TokenTree::Punct(Punct::And))
+            }
+            TokenKind::Star => {
+                (t0, TokenTree::Punct(Punct::Star))
+            }
             TokenKind::Eof => {
                 (t0, TokenTree::Eof)
             }

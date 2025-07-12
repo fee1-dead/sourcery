@@ -1,8 +1,5 @@
 use std::{mem, vec};
 
-use ra_ap_rustc_lexer::TokenKind;
-use smol_str::SmolStr;
-
 use crate::ast::{Braces, Delimited, Delimiter, Parens};
 use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
@@ -88,7 +85,7 @@ impl TokenTree {
     pub fn is_delim(&self, delim: Delimiter) -> bool {
         match self {
             TokenTree::Group(delimited) => delimited.delimiter() == delim,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -135,18 +132,6 @@ impl_print_for_punct!(
     Minus, And, Or, Plus, Star, Slash, Caret, Percent,
 );
 
-#[derive(Debug)]
-pub struct Token {
-    kind: TokenKind,
-    snippet: SmolStr,
-}
-
-impl Print for Token {
-    fn print(&self, dest: &mut String) {
-        self.snippet.print(dest);
-    }
-}
-
 pub struct Parser<'src> {
     tokens: Box<dyn TokenIterator + 'src>,
     token: (Trivia, TokenTree),
@@ -187,6 +172,18 @@ impl<'src> Parser<'src> {
     pub fn eat_punct(&mut self, punct: Punct) -> Option<Trivia> {
         self.check_punct(punct).then(|| self.bump().0)
     }
+    pub fn eat_delimited(&mut self) -> Option<(Trivia, Delimited<TokenStream>)> {
+        self.eat(|tt| matches!(tt, TokenTree::Group(_)))
+            .map(|(t, tt)| {
+                (
+                    t,
+                    match tt {
+                        TokenTree::Group(delim) => *delim,
+                        _ => unreachable!(),
+                    },
+                )
+            })
+    }
     pub fn eat_delim<T>(
         &mut self,
         delim: Delimiter,
@@ -205,10 +202,16 @@ impl<'src> Parser<'src> {
         self.eat(|tt| matches!(tt, TokenTree::Eof)).map(|(t, _)| t)
     }
     pub fn eat_literal(&mut self) -> Option<(Trivia, Literal)> {
-        self.eat(|tt| matches!(tt, TokenTree::Literal(_))).map(|(t, tt)| (t, match tt {
-            TokenTree::Literal(l) => l,
-            _ => unreachable!()
-        }))
+        self.eat(|tt| matches!(tt, TokenTree::Literal(_)))
+            .map(|(t, tt)| {
+                (
+                    t,
+                    match tt {
+                        TokenTree::Literal(l) => l,
+                        _ => unreachable!(),
+                    },
+                )
+            })
     }
     pub fn eat(&mut self, f: impl FnOnce(&TokenTree) -> bool) -> Option<(Trivia, TokenTree)> {
         self.peek(f).then(|| self.bump())
@@ -350,7 +353,7 @@ impl<'src> Parser<'src> {
             attrs,
             items: List::default(),
         };
-        
+
         if let Some(tlast) = self.eat_eof() {
             module.items.push_trivia(tlast);
             return module;
