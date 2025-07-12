@@ -16,10 +16,12 @@ impl<'src> Gluer<'src> {
         Self { lexer }
     }
     pub fn snapshot(&self) -> Self {
-        Gluer { lexer: self.lexer.snapshot() }
+        Gluer {
+            lexer: self.lexer.snapshot(),
+        }
     }
     fn peek(&mut self) -> (Trivia, TokenKind, SmolStr) {
-        self.lexer.snapshot().next()
+        self.peek_nth(0)
     }
     fn peek_nth(&mut self, n: usize) -> (Trivia, TokenKind, SmolStr) {
         let mut l = self.lexer.snapshot();
@@ -45,7 +47,7 @@ impl<'src> Gluer<'src> {
     }
     pub fn next(&mut self) -> (Trivia, TokenTree) {
         let (t0, tok, s) = self.lexer.next();
-        match tok {
+        let tt = match tok {
             TokenKind::OpenBrace | TokenKind::OpenParen | TokenKind::OpenBracket => {
                 #[rustfmt::skip]
                 let (until, delim): (_, fn(_) -> _) = match tok {
@@ -54,62 +56,44 @@ impl<'src> Gluer<'src> {
                     TokenKind::OpenBracket => (TokenKind::CloseBracket, |stream: TokenStream| Delimited::Brackets(Brackets(stream))),
                     _ => unreachable!(),
                 };
-                let stream = self.collect_until(until);
-                self.lexer.next();
-                (t0, TokenTree::Group(Box::new(delim(stream))))
+                let mut stream = self.collect_until(until);
+                let triv = self.lexer.next().0;
+                stream.tokens.push_trivia(triv);
+                TokenTree::Group(Box::new(delim(stream)))
             }
-            TokenKind::At => (t0, TokenTree::Punct(Punct::At)),
-            TokenKind::Ident => (t0, TokenTree::Ident(Ident(s))),
-            TokenKind::RawIdent => (t0, TokenTree::RawIdent(Ident(s))),
+            TokenKind::At => TokenTree::Punct(Punct::At),
+            TokenKind::Ident => TokenTree::Ident(Ident(s)),
+            TokenKind::RawIdent => TokenTree::RawIdent(Ident(s)),
             TokenKind::Lifetime {
                 starts_with_number: _,
-            } => (t0, TokenTree::Lifetime(Ident(s))),
-            TokenKind::RawLifetime => (t0, TokenTree::RawLifetime(Ident(s))),
+            } => TokenTree::Lifetime(Ident(s)),
+            TokenKind::RawLifetime => TokenTree::RawLifetime(Ident(s)),
 
-            TokenKind::Literal { kind: _, suffix_start } => {
+            TokenKind::Literal {
+                kind: _,
+                suffix_start,
+            } => {
                 let suffix_start = suffix_start as usize;
                 let symbol = SmolStr::new(&s[..suffix_start]);
                 let suffix = SmolStr::new(&s[suffix_start..]);
-                (t0, TokenTree::Literal(Literal { symbol, suffix }))
+                TokenTree::Literal(Literal { symbol, suffix })
             }
-            
-            TokenKind::Pound => {
-                (t0, TokenTree::Punct(Punct::Pound))
-            }
-            TokenKind::Bang => {
-                (t0, TokenTree::Punct(Punct::Bang))
-            }
-            TokenKind::Semi => {
-                (t0, TokenTree::Punct(Punct::Semi))
-            }
+
+            TokenKind::Pound => TokenTree::Punct(Punct::Pound),
+            TokenKind::Bang => TokenTree::Punct(Punct::Bang),
+            TokenKind::Semi => TokenTree::Punct(Punct::Semi),
             TokenKind::Colon if matches!(self.peek(), (t, TokenKind::Colon, _) if t.is_empty()) => {
                 self.lexer.next();
-                (t0, TokenTree::Punct(Punct::ColonColon))
+                TokenTree::Punct(Punct::ColonColon)
             }
-            TokenKind::Eq => {
-                (t0, TokenTree::Punct(Punct::Eq))
-            }
-            TokenKind::Tilde => {
-                (t0, TokenTree::Punct(Punct::Tilde))
-            }
-            TokenKind::Dollar => {
-                (t0, TokenTree::Punct(Punct::Dollar))
-            }
-            TokenKind::Percent => {
-                (t0, TokenTree::Punct(Punct::Percent))
-            }
-            TokenKind::Caret => {
-                (t0, TokenTree::Punct(Punct::Caret))
-            }
-            TokenKind::And => {
-                (t0, TokenTree::Punct(Punct::And))
-            }
-            TokenKind::Star => {
-                (t0, TokenTree::Punct(Punct::Star))
-            }
-            TokenKind::Eof => {
-                (t0, TokenTree::Eof)
-            }
+            TokenKind::Eq => TokenTree::Punct(Punct::Eq),
+            TokenKind::Tilde => TokenTree::Punct(Punct::Tilde),
+            TokenKind::Dollar => TokenTree::Punct(Punct::Dollar),
+            TokenKind::Percent => TokenTree::Punct(Punct::Percent),
+            TokenKind::Caret => TokenTree::Punct(Punct::Caret),
+            TokenKind::And => TokenTree::Punct(Punct::And),
+            TokenKind::Star => TokenTree::Punct(Punct::Star),
+            TokenKind::Eof => TokenTree::Eof,
 
             TokenKind::CloseBrace | TokenKind::CloseBracket | TokenKind::CloseParen => {
                 panic!("unclosed group");
@@ -129,6 +113,8 @@ impl<'src> Gluer<'src> {
             }
 
             tk => todo!("{tk:?}"),
-        }
+        };
+
+        (t0, tt)
     }
 }
