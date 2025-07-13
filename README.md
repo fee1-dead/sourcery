@@ -2,3 +2,102 @@
 
 Note: some code are implemented while referencing [syn](https://github.com/dtolnay/syn)
 
+## To-Do
+
+Parsing & AST:
+
+- [ ] Frontmatter and shebangs
+- [x] Attributes
+- [ ] Items
+    - [ ] Extern crates
+    - [ ] Use trees
+    - [ ] statics and consts
+    - [x] Modules
+        - [ ] Unsafe modules
+    - [ ] Extern modules
+    - [ ] Type aliases
+    - [ ] Enums
+    - [ ] Structs and unions
+    - [ ] Traits
+    - [ ] Trait aliases
+    - [ ] Impls
+    - [ ] Macro calls
+    - [ ] Macro definitions (1.0)
+    - [ ] Macro 2.0 defs
+    - [ ] Delegations
+- [ ] [Types](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.TyKind.html)
+    - [ ] Slices
+    - [ ] Arrays
+    - [ ] Pointers
+    - [ ] References
+    - [ ] Pinned references
+    - [ ] Fn pointers
+    - [ ] HRTBs + unsafe binders
+    - [ ] Never
+    - [ ] Tuples and parens
+    - [ ] Paths
+    - [ ] Qualified paths
+    - [ ] Trait objects
+    - [ ] Impl traits
+    - [ ] Underscore
+    - [ ] Macro calls
+- [ ] [Patterns](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.PatKind.html)
+    - [ ] Underscore
+    - [ ] `ref mut ident @ opt_subpattern`
+    - [ ] Struct
+    - [ ] Tuple
+    - [ ] Or
+    - [ ] Path
+    - [ ] Qualified path
+    - [ ] Tuple
+    - [ ] Box
+    - [ ] Ref
+    - [ ] Literal/Const block
+    - [ ] Range
+    - [ ] Slice
+    - [ ] Rest
+    - [ ] Never
+    - [ ] Pat with guard
+    - [ ] Paren
+    - [ ] Macro
+- [ ] Bits and pieces
+    - [ ] Where clauses
+    - [ ] Generic params
+- [ ] [Expressions](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.ExprKind.html)
+    - [ ] Arrays and array repeats
+    - [ ] Blocks: normal, unsafe, const, async, gen, try
+    - [ ] Calls
+    - [ ] Tuples
+    - [ ] Binops
+    - [ ] Unops
+    - [ ] Literals
+    - [ ] Casts
+    - [ ] Ifs
+    - [ ] Whiles
+    - [ ] Lets (in ifs and whiles)
+    - [ ] For loops
+    - [ ] Loops
+    - [ ] Matches
+    - [ ] Closures
+    - [ ] Blocks
+    - [ ] Use expression
+    - [ ] AssignOp
+    - [ ] Fields
+    - [ ] Indexing
+    - [ ] Ranges
+    - [ ] Underscores
+    - [ ] Paths
+    - [ ] References
+    - [ ] Breaks/Continue/returns/Yields/Yeets/Becomes
+    - [ ] Returns
+    - [ ] Macros
+    - [ ] Structs
+    - [ ] Paren
+    - [ ] Try (`x?`)
+- [ ] Statements
+    - [ ] Lets
+    - [ ] Items
+    - [ ] Exprs (w/wo semis)
+    - [ ] Empty
+    - [ ] Macros
+
