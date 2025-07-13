@@ -11,6 +11,7 @@ use crate::{Print, TrivialPrint, lex};
 mod attr;
 mod expr;
 mod glue;
+mod ty;
 
 #[derive(Default, Clone, Debug, TrivialPrint!)]
 pub struct TokenStream {
