@@ -1,17 +1,19 @@
 use std::{mem, vec};
 
-use crate::ast::{Braces, Delimited, Delimiter, Parens};
-use crate::ast::{File, Item, ItemMod, List, Module, Path, PathSegment, VisRestricted, Visibility};
+use crate::ast::{Delimited, Delimiter, Parens};
+use crate::ast::{File, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
-use crate::ast::{ItemKind, Literal, Token};
+use crate::ast::{Literal, Token};
 use crate::parse::attr::AttrKind;
 use crate::parse::glue::Gluer;
 use crate::{Print, TrivialPrint, lex};
 
 mod attr;
 mod expr;
+mod generics;
 mod glue;
 mod ty;
+mod item;
 
 #[derive(Default, Clone, Debug, TrivialPrint!)]
 pub struct TokenStream {
@@ -241,49 +243,6 @@ impl<'src> Parser<'src> {
             panic!("expected ident")
         };
         (t, id)
-    }
-
-    pub fn parse_item(&mut self) -> (Trivia, Item) {
-        let attrs = self.parse_attrs(AttrKind::Inner);
-        let vis = self.parse_vis();
-        if let Some((tbeforemod, _)) = self.eat_ident("mod") {
-            let (t1, name) = self.parse_ident();
-            let (t2, semi, content) = if let Some(t2) = self.eat_punct(Punct::Semi) {
-                (t2, Some(Token![;]), None)
-            } else if let Some((t2, module)) =
-                self.eat_delim(Delimiter::Braces, |t2, mut this| (t2, this.parse_module()))
-            {
-                (t2, None, Some(Braces(module)))
-            } else {
-                unimplemented!()
-            };
-            let (t0, attrs, vis) = match (attrs, vis) {
-                (Some((t0, mut attrs)), Some((tsquash, vis))) => {
-                    attrs.push_trivia(tsquash);
-                    (t0, attrs, Some((vis, tbeforemod)))
-                }
-                (Some((t0, attrs)), None) => (t0, attrs, None),
-                (None, Some((t0, vis))) => (t0, List::default(), Some((vis, tbeforemod))),
-                (None, None) => (tbeforemod, List::default(), None),
-            };
-            (
-                t0,
-                Item {
-                    attrs,
-                    kind: ItemKind::Mod(ItemMod {
-                        vis,
-                        kw: Token![mod],
-                        t1,
-                        name,
-                        t2,
-                        semi,
-                        content,
-                    }),
-                },
-            )
-        } else {
-            unimplemented!("{:?}", self.token)
-        }
     }
 
     pub fn parse_path_segment(&mut self) -> (Trivia, PathSegment) {

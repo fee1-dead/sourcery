@@ -16,6 +16,9 @@ Parsing & AST:
         - [ ] Unsafe modules
     - [ ] Extern modules
     - [ ] Type aliases
+        - [x] Basic
+        - [ ] Generic params
+        - [ ] Where clauses
     - [ ] Enums
     - [ ] Structs and unions
     - [ ] Traits

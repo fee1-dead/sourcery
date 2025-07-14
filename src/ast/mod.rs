@@ -8,7 +8,10 @@ mod token;
 pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, Trivium};
 pub use token::{Token, kw, tokens};
+mod item;
+pub use item::{Item, ItemKind, Mod, TyAlias};
 mod ty;
+pub use ty::Ty;
 
 use crate::TrivialPrint;
 use crate::print::Print;
@@ -83,46 +86,6 @@ impl<T> List<T> {
     }
 }
 
-#[derive(TrivialPrint!)]
-pub struct ItemMod {
-    pub vis: Option<(Visibility, Trivia)>,
-    pub kw: Token![mod],
-    pub t1: Trivia,
-    pub name: Ident,
-    pub t2: Trivia,
-    pub semi: Option<Token![;]>,
-    pub content: Option<Braces<Module>>,
-}
-
-impl Debug for ItemMod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ItemMod {
-            vis,
-            kw,
-            t1,
-            name,
-            t2,
-            semi,
-            content,
-        } = self;
-        let mut f = f.debug_struct("ItemMod");
-        if let Some(vis) = vis {
-            f.field("vis", vis);
-        }
-        f.field("kw", kw)
-            .field("t1", t1)
-            .field("name", name)
-            .field("t2", t2);
-        if let Some(semi) = semi {
-            f.field("semi", semi);
-        }
-        if let Some(content) = content {
-            f.field("content", content);
-        }
-        f.finish()
-    }
-}
-
 #[derive(Debug, TrivialPrint!)]
 pub struct PathSegment {
     pub ident: Ident,
@@ -153,17 +116,6 @@ pub enum Visibility {
         t1: Trivia,
         parens: Parens<VisRestricted>,
     },
-}
-
-#[derive(Debug, TrivialPrint!)]
-pub enum ItemKind {
-    Mod(ItemMod),
-}
-
-#[derive(Debug, TrivialPrint!)]
-pub struct Item {
-    pub attrs: List<Attribute>,
-    pub kind: ItemKind,
 }
 
 #[derive(Debug, TrivialPrint!)]
