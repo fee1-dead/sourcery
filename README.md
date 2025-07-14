@@ -42,7 +42,7 @@ Parsing & AST:
     - [ ] Qualified paths
     - [ ] Trait objects
     - [ ] Impl traits
-    - [ ] Underscore
+    - [x] Underscore
     - [ ] Macro calls
 - [ ] [Patterns](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.PatKind.html)
     - [ ] Underscore
