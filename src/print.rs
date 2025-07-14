@@ -109,6 +109,18 @@ impl<T1: Print, T2: Print, T3: Print, T4: Print> Print for (T1, T2, T3, T4) {
     }
 }
 
+impl<T1: Print, T2: Print, T3: Print, T4: Print, T5: Print, T6: Print> Print for (T1, T2, T3, T4, T5, T6) {
+    fn print(&self, dest: &mut String) {
+        let (a, b, c, d, e, f) = self;
+        a.print(dest);
+        b.print(dest);
+        c.print(dest);
+        d.print(dest);
+        e.print(dest);
+        f.print(dest);
+    }
+}
+
 impl<T: Print> Print for Vec<T> {
     fn print(&self, dest: &mut String) {
         self.iter().for_each(|x| x.print(dest));

@@ -11,7 +11,7 @@ pub use token::{Token, kw, tokens};
 mod item;
 pub use item::{Item, ItemKind, Mod, TyAlias};
 mod ty;
-pub use ty::Ty;
+pub use ty::{ArrayTy, Ty};
 
 use crate::TrivialPrint;
 use crate::print::Print;

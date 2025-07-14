@@ -29,8 +29,8 @@ Parsing & AST:
     - [ ] Macro 2.0 defs
     - [ ] Delegations
 - [ ] [Types](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.TyKind.html)
-    - [ ] Slices
-    - [ ] Arrays
+    - [x] Slices
+    - [x] Arrays
     - [ ] Pointers
     - [ ] References
     - [ ] Pinned references
@@ -38,7 +38,7 @@ Parsing & AST:
     - [ ] HRTBs + unsafe binders
     - [ ] Never
     - [ ] Tuples and parens
-    - [ ] Paths
+    - [x] Paths
     - [ ] Qualified paths
     - [ ] Trait objects
     - [ ] Impl traits
