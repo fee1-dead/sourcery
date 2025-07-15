@@ -6,7 +6,7 @@ impl<'src> super::Parser<'src> {
         let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
         let (t1, mut expr) = self.parse_atom_expr();
         attrs.push_trivia(t1);
-        expr.attributes = attrs;
+        expr.attrs = attrs;
         (t0, expr)
     }
     fn parse_atom_expr(&mut self) -> (Trivia, Expr) {
@@ -15,7 +15,7 @@ impl<'src> super::Parser<'src> {
             (
                 t,
                 Expr {
-                    attributes: List::default(),
+                    attrs: List::default(),
                     kind: ExprKind::Literal(l),
                 },
             )

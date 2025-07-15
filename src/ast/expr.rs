@@ -1,7 +1,6 @@
 use crate::TrivialPrint;
-use crate::ast::{Attribute, List};
 
-use super::Literal;
+use super::{Attribute, List, Literal};
 
 #[derive(Debug, TrivialPrint!)]
 pub enum ExprKind {
@@ -10,6 +9,6 @@ pub enum ExprKind {
 
 #[derive(Debug, TrivialPrint!)]
 pub struct Expr {
-    pub attributes: List<Attribute>,
+    pub attrs: List<Attribute>,
     pub kind: ExprKind,
 }
