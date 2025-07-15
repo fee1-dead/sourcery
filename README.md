@@ -10,6 +10,9 @@ Parsing & AST:
 - [x] Attributes
 - [ ] Items
     - [ ] Extern crates
+    - [ ] Functions
+        - [x] Basic
+        - [ ] All keywords
     - [ ] Use trees
     - [ ] statics and consts
     - [x] Modules
@@ -46,6 +49,7 @@ Parsing & AST:
     - [ ] Macro calls
 - [ ] [Patterns](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.PatKind.html)
     - [ ] Underscore
+    - [x] Basic ident
     - [ ] `ref mut ident @ opt_subpattern`
     - [ ] Struct
     - [ ] Tuple
@@ -100,7 +104,7 @@ Parsing & AST:
 - [ ] Statements
     - [ ] Lets
     - [ ] Items
-    - [ ] Exprs (w/wo semis)
-    - [ ] Empty
+    - [x] Exprs (w/wo semis)
+    - [x] Empty
     - [ ] Macros
 
