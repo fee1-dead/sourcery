@@ -22,6 +22,15 @@ macro_rules! TrivialPrint {
         }], $self, $dest, $($($tt)*)?))
     };
     (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
+        $var_name:ident($vis:vis $FieldTy:ty, $vis2:vis $FieldTy2:ty, $vis3:vis $FieldTy3:ty$(,)?)$(;)?
+    $(,$($tt:tt)*)?)) => {
+        $crate::TrivialPrint!(@gen_match([$($existing)* $var_name( a, b, c ) => {
+            $crate::print::Print::print(a, $dest);
+            $crate::print::Print::print(b, $dest);
+            $crate::print::Print::print(c, $dest);
+        }], $self, $dest, $($($tt)*)?))
+    };
+    (@gen_match([$($existing:tt)*], $self:ident, $dest:ident,
         $var_name:ident {
             $($field_vis:vis $field_name:ident: $FieldTy:ty),*$(,)?
         }

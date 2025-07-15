@@ -9,9 +9,13 @@ pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, Trivium};
 pub use token::{Token, kw, tokens};
 mod item;
-pub use item::{Item, ItemKind, Mod, TyAlias};
+pub use item::{Item, ItemKind, Mod, TyAlias, Fn, FnParam, FnRet};
 mod ty;
 pub use ty::{ArrayTy, Ty};
+mod stmt;
+pub use stmt::{Stmt, StmtKind, Block, BlockInner};
+mod pat;
+pub use pat::Pat;
 
 use crate::TrivialPrint;
 use crate::print::Print;
@@ -67,8 +71,9 @@ impl<T> List<T> {
         }
     }
 
-    fn push_value(&mut self, x: T) {
+    pub fn push_value(&mut self, x: T) {
         self.optimize();
+        assert!(self.tlast.is_empty());
         self.inner.push((x, Trivia::default()))
     }
 

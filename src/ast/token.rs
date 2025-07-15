@@ -164,7 +164,7 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    keywords(Mod(mod), Pub(pub), In(in), Type(type));
+    keywords(Mod(mod), Pub(pub), In(in), Type(type), Fn(fn));
     tokens(
         Semi(;),
         Comma(,),
@@ -188,6 +188,7 @@ define_tokens! {
         Slash(/),
         Caret(^),
         Percent(%),
+        RArrow(->),
     );
 }
 

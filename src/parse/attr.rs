@@ -6,16 +6,18 @@ use crate::parse::{Parser, Punct, TokenTree};
 
 #[derive(Clone, Copy)]
 pub enum AttrKind {
-    Inner,
+    /// An attribute at the outer of an item, `#[inline]`
     Outer,
+    /// An attribute inside something, `#![feature(const_trait_impl)]` inside a module
+    Inner,
 }
 
 impl<'src> Parser<'src> {
     pub fn maybe_parse_attr(&mut self, kind: AttrKind) -> Option<(Trivia, Attribute)> {
         let is_attr = self.check_punct(Punct::Pound)
             && match kind {
-                AttrKind::Inner => self.peek_nth(1, |(_, t)| t.is_delim(Delimiter::Brackets)),
-                AttrKind::Outer => {
+                AttrKind::Outer => self.peek_nth(1, |(_, t)| t.is_delim(Delimiter::Brackets)),
+                AttrKind::Inner => {
                     self.peek_nth(1, |(_, t)| matches!(t, TokenTree::Punct(Punct::Bang)))
                         && self.peek_nth(2, |(_, t)| t.is_delim(Delimiter::Brackets))
                 }

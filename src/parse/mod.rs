@@ -12,8 +12,10 @@ mod attr;
 mod expr;
 mod generics;
 mod glue;
-mod ty;
 mod item;
+mod stmt;
+mod ty;
+mod pat;
 
 #[derive(Default, Clone, Debug, TrivialPrint!)]
 pub struct TokenStream {
@@ -117,6 +119,7 @@ pub enum Punct {
     Slash,
     Caret,
     Percent,
+    RArrow,
 }
 
 macro_rules! impl_print_for_punct {
@@ -132,7 +135,7 @@ macro_rules! impl_print_for_punct {
 }
 impl_print_for_punct!(
     Semi, Comma, Dot, At, Pound, Tilde, Question, Colon, ColonColon, Dollar, Eq, Bang, Lt, Gt,
-    Minus, And, Or, Plus, Star, Slash, Caret, Percent,
+    Minus, And, Or, Plus, Star, Slash, Caret, Percent, RArrow,
 );
 
 pub struct Parser<'src> {
@@ -307,7 +310,7 @@ impl<'src> Parser<'src> {
         Some((t0, vis))
     }
     pub fn parse_module(&mut self) -> Module {
-        let (t1, attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        let (t1, attrs) = self.parse_attrs(AttrKind::Inner).unwrap_or_default();
         let mut module = Module {
             t1,
             attrs,

@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use crate::ast::Ty;
+use crate::ast::{Block, Parens, Pat, Ty};
 use crate::TrivialPrint;
 use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 
@@ -7,6 +7,7 @@ use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 pub enum ItemKind {
     Mod(Mod),
     TyAlias(TyAlias),
+    Fn(Fn),
 }
 
 #[derive(Debug, TrivialPrint!)]
@@ -67,4 +68,35 @@ pub struct TyAlias {
     pub ty: Ty,
     pub t4: Trivia,
     pub semi: Token![;],
+}
+
+#[derive(Debug, TrivialPrint!)]
+pub struct FnParam {
+    pub attrs: List<Attribute>,
+    pub pat: Pat,
+    pub t1: Trivia,
+    pub colon: Token![:],
+    pub t2: Trivia,
+    pub ty: Ty,
+    pub comma: Option<(Trivia, Token![,])>,
+}
+
+#[derive(Debug, TrivialPrint!)]
+pub struct FnRet {
+    pub arrow: Token![->],
+    pub t2_5: Trivia,
+    pub ty: Ty,
+}
+
+#[derive(Debug, TrivialPrint!)]
+pub struct Fn {
+    pub vis: Option<(Visibility, Trivia)>,
+    pub kw: Token![fn],
+    pub t1: Trivia,
+    pub name: Ident,
+    pub t2: Trivia,
+    pub params: Parens<(Trivia, List<FnParam>)>,
+    pub ret: Option<(Trivia, FnRet)>,
+    pub t3: Trivia,
+    pub block: Block,
 }

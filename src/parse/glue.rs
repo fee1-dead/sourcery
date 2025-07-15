@@ -90,6 +90,7 @@ impl<'src> Gluer<'src> {
                 self.lexer.next();
                 TokenTree::Punct(Punct::ColonColon)
             }
+            TokenKind::Colon => TokenTree::Punct(Punct::Colon),
             TokenKind::Eq => TokenTree::Punct(Punct::Eq),
             TokenKind::Tilde => TokenTree::Punct(Punct::Tilde),
             TokenKind::Dollar => TokenTree::Punct(Punct::Dollar),
@@ -98,6 +99,10 @@ impl<'src> Gluer<'src> {
             TokenKind::And => TokenTree::Punct(Punct::And),
             TokenKind::Star => TokenTree::Punct(Punct::Star),
             TokenKind::Eof => TokenTree::Eof,
+            TokenKind::Minus if matches!(self.peek(), (t, TokenKind::Gt, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::RArrow)
+            }
 
             TokenKind::CloseBrace | TokenKind::CloseBracket | TokenKind::CloseParen => {
                 panic!("unclosed group");
