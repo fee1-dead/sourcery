@@ -4,8 +4,6 @@ mod attr;
 pub use attr::{Attribute, AttributeInner, AttributeStyle, AttributeValue};
 mod expr;
 pub use expr::{Expr, ExprKind};
-mod stmt;
-pub use stmt::{Stmt, StmtKind};
 mod token;
 pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, Trivium};
