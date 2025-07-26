@@ -1,5 +1,6 @@
 use crate::ast::{
-    Attribute, Braces, Delimiter, Fn, FnParam, FnRet, Item, ItemKind, List, Mod, Parens, Token, Trivia, TyAlias, Visibility
+    Attribute, Braces, Delimiter, Fn, FnParam, FnRet, Item, ItemKind, List, Mod, Parens, Token,
+    Trivia, TyAlias, Visibility,
 };
 use crate::parse::attr::AttrKind;
 use crate::parse::{Parser, Punct};
@@ -24,7 +25,7 @@ impl Parser<'_> {
     fn parse_fn_params(&mut self) -> (Trivia, Parens<(Trivia, List<FnParam>)>) {
         self.eat_delim(Delimiter::Parens, |t0, mut this| {
             if let Some(last) = this.eat_eof() {
-                return (t0, Parens((last, List::default())))
+                return (t0, Parens((last, List::default())));
             }
             let mut list = List::default();
             let mut tfirst = None;
@@ -37,10 +38,15 @@ impl Parser<'_> {
                 let comma = this.eat_punct(Punct::Comma).map(|c| (c, Token![,]));
                 let has_comma = comma.is_some();
                 let p = FnParam {
-                    attrs, pat, t1, colon: Token![:], t2, ty,
+                    attrs,
+                    pat,
+                    t1,
+                    colon: Token![:],
+                    t2,
+                    ty,
                     comma,
                 };
-                
+
                 if tfirst.is_none() {
                     tfirst = Some(tattr);
                     list = List::single(p);
@@ -52,63 +58,79 @@ impl Parser<'_> {
                     if let Some(tlast) = eof {
                         list.push_trivia(tlast);
                     }
-                    break (t0, Parens((tfirst.unwrap_or_default(), list)))
+                    break (t0, Parens((tfirst.unwrap_or_default(), list)));
                 }
             }
-        }).unwrap()
+        })
+        .unwrap()
     }
 
     fn parse_fn_ret(&mut self) -> Option<(Trivia, FnRet)> {
         let t1 = self.eat_punct(Punct::RArrow)?;
         let (t2_5, ty) = self.parse_ty();
-        Some((t1, FnRet { arrow: Token![->], t2_5, ty }))
+        Some((
+            t1,
+            FnRet {
+                arrow: Token![->],
+                t2_5,
+                ty,
+            },
+        ))
+    }
+
+    pub fn parse_item_mod(&mut self, vis: Option<(Visibility, Trivia)>) -> Mod {
+        let (t1, name) = self.parse_ident();
+        let (t2, semi, content) = if let Some(t2) = self.eat_punct(Punct::Semi) {
+            (t2, Some(Token![;]), None)
+        } else if let Some((t2, module)) =
+            self.eat_delim(Delimiter::Braces, |t2, mut this| (t2, this.parse_module()))
+        {
+            (t2, None, Some(Braces(module)))
+        } else {
+            unimplemented!()
+        };
+
+        Mod {
+            vis,
+            kw: Token![mod],
+            t1,
+            name,
+            t2,
+            semi,
+            content,
+        }
+    }
+    pub fn parse_item_ty_alias(&mut self, vis: Option<(Visibility, Trivia)>) -> TyAlias {
+        let (t1, name) = self.parse_ident();
+        let t2 = self.eat_punct(Punct::Eq).unwrap();
+        let (t3, ty) = self.parse_ty();
+        let t4 = self.eat_punct(Punct::Semi).unwrap();
+        TyAlias {
+            vis,
+            kw: Token![type],
+            t1,
+            name,
+            t2,
+            eq: Token![=],
+            t3,
+            ty,
+            t4,
+            semi: Token![;],
+        }
     }
     pub fn parse_item(&mut self) -> (Trivia, Item) {
         let attrs = self.parse_attrs(AttrKind::Outer);
         let vis = self.parse_vis();
         if let Some((tbeforemod, _)) = self.eat_ident("mod") {
             let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforemod);
-            let (t1, name) = self.parse_ident();
-            let (t2, semi, content) = if let Some(t2) = self.eat_punct(Punct::Semi) {
-                (t2, Some(Token![;]), None)
-            } else if let Some((t2, module)) =
-                self.eat_delim(Delimiter::Braces, |t2, mut this| (t2, this.parse_module()))
-            {
-                (t2, None, Some(Braces(module)))
-            } else {
-                unimplemented!()
-            };
-
-            let kind = ItemKind::Mod(Mod {
-                vis,
-                kw: Token![mod],
-                t1,
-                name,
-                t2,
-                semi,
-                content,
-            });
+            let kind = ItemKind::Mod(self.parse_item_mod(vis));
             (t0, Item { attrs, kind })
         } else if let Some((tbeforetype, _)) = self.eat_ident("type") {
             let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforetype);
-            let (t1, name) = self.parse_ident();
-            let t2 = self.eat_punct(Punct::Eq).unwrap();
-            let (t3, ty) = self.parse_ty();
-            let t4 = self.eat_punct(Punct::Semi).unwrap();
-            let kind = ItemKind::TyAlias(TyAlias {
-                vis,
-                kw: Token![type],
-                t1,
-                name,
-                t2,
-                eq: Token![=],
-                t3,
-                ty,
-                t4,
-                semi: Token![;],
-            });
+            let kind = ItemKind::TyAlias(self.parse_item_ty_alias(vis));
             (t0, Item { attrs, kind })
         } else if let Some((tbeforefn, _)) = self.eat_ident("fn") {
+            // TODO parse leading modifiers (unsafe, const, extern)
             let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforefn);
             let (t1, name) = self.parse_ident();
             let (t2, params) = self.parse_fn_params();

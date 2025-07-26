@@ -1,5 +1,6 @@
 use std::fmt::Debug;
-use crate::ast::{Block, Parens, Pat, Ty};
+use crate::ast::tokens::Semi;
+use crate::ast::{Block, Expr, Parens, Pat, Ty};
 use crate::TrivialPrint;
 use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 
@@ -99,4 +100,22 @@ pub struct Fn {
     pub ret: Option<(Trivia, FnRet)>,
     pub t3: Trivia,
     pub block: Block,
+}
+
+#[derive(Debug, TrivialPrint!)]
+pub struct Const {
+    pub vis: Option<(Visibility, Trivia)>,
+    pub kw: Token![const],
+    pub t1: Trivia,
+    pub name: Ident,
+    pub t2: Trivia,
+    pub colon: Token![:],
+    pub t3: Trivia,
+    pub ty: Ty,
+    pub t4: Trivia,
+    pub eq: Token![=],
+    pub t5: Trivia,
+    pub expr: Expr,
+    pub t6: Trivia,
+    pub semi: Semi,
 }
