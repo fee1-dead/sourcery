@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [[test]]
 name = "pp"
-path = "tests/pp.rs"
+path = "tests/main.rs"
 harness = false
 
 [dev-dependencies]

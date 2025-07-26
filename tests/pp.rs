@@ -6,9 +6,8 @@ use std::env::current_dir;
 use std::fs::read_to_string;
 use std::panic::catch_unwind;
 use std::path::Path;
-use std::process::ExitCode;
 
-use libtest_mimic::{Arguments, Failed, Trial};
+use libtest_mimic::{Failed, Trial};
 use walkdir::WalkDir;
 
 static VARIANTS: &[Variant] = &[
@@ -73,13 +72,10 @@ impl Variant {
     }
 }
 
-fn main() -> color_eyre::Result<ExitCode> {
-    let args = Arguments::from_args();
+pub fn add_tests(tests: &mut Vec<Trial>) -> color_eyre::Result<()> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let current_dir = current_dir()?;
     let walk = WalkDir::new(manifest_dir.join("tests/pp"));
-
-    let mut tests = vec![];
 
     for dir in walk {
         let ent = dir?;
@@ -96,5 +92,5 @@ fn main() -> color_eyre::Result<ExitCode> {
         );
     }
 
-    Ok(libtest_mimic::run(&args, tests).exit_code())
+    Ok(())
 }

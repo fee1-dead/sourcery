@@ -2,6 +2,7 @@ pub mod ast;
 mod lex;
 pub(crate) use lex::Lexer;
 mod parse;
+mod passes;
 mod print;
 
 pub use parse::{parse, parse_to_tokenstream};
