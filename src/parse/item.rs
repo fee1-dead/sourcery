@@ -1,6 +1,6 @@
 use crate::ast::{
-    Attribute, Braces, Delimiter, Fn, FnParam, FnRet, Item, ItemKind, List, Mod, Parens, Token,
-    Trivia, TyAlias, Visibility,
+    Attribute, Braces, Const, Delimiter, Fn, FnParam, FnRet, Item, ItemKind, List, Mod, Parens,
+    Token, Trivia, TyAlias, Visibility,
 };
 use crate::parse::attr::AttrKind;
 use crate::parse::{Parser, Punct};
@@ -118,6 +118,30 @@ impl Parser<'_> {
             semi: Token![;],
         }
     }
+    pub fn parse_item_const(&mut self, vis: Option<(Visibility, Trivia)>) -> Const {
+        let (t1, name) = self.parse_ident();
+        let t2 = self.eat_punct(Punct::Colon).unwrap();
+        let (t3, ty) = self.parse_ty();
+        let t4 = self.eat_punct(Punct::Eq).unwrap();
+        let (t5, expr) = self.parse_expr();
+        let t6 = self.eat_punct(Punct::Semi).unwrap();
+        Const {
+            vis,
+            t1,
+            kw: Token![const],
+            name,
+            t2,
+            colon: Token![:],
+            t3,
+            ty,
+            t4,
+            eq: Token![=],
+            t5,
+            expr,
+            t6,
+            semi: Token![;],
+        }
+    }
     pub fn parse_item(&mut self) -> (Trivia, Item) {
         let attrs = self.parse_attrs(AttrKind::Outer);
         let vis = self.parse_vis();
@@ -147,6 +171,10 @@ impl Parser<'_> {
                 t3,
                 block,
             });
+            (t0, Item { attrs, kind })
+        } else if let Some((tbeforeconst, _)) = self.eat_ident("const") {
+            let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforeconst);
+            let kind = ItemKind::Const(self.parse_item_const(vis));
             (t0, Item { attrs, kind })
         } else {
             unimplemented!("{:?}", self.token)

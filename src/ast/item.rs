@@ -6,6 +6,7 @@ use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 
 #[derive(Debug, TrivialPrint!)]
 pub enum ItemKind {
+    Const(Const),
     Mod(Mod),
     TyAlias(TyAlias),
     Fn(Fn),

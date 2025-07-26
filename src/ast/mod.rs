@@ -11,11 +11,11 @@ pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, Trivium};
 pub use token::{Token, kw, tokens};
 mod item;
-pub use item::{Item, ItemKind, Mod, TyAlias, Fn, FnParam, FnRet};
+pub use item::{Const, Fn, FnParam, FnRet, Item, ItemKind, Mod, TyAlias};
 mod ty;
 pub use ty::{ArrayTy, Ty};
 mod stmt;
-pub use stmt::{Stmt, StmtKind, Block, BlockInner};
+pub use stmt::{Block, BlockInner, Stmt, StmtKind};
 mod pat;
 pub use pat::Pat;
 
