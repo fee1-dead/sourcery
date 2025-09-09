@@ -21,7 +21,7 @@ impl<'src> Lexer<'src> {
     }
     pub fn next(&mut self) -> (Trivia, TokenKind, SmolStr) {
         use TokenKind::*;
-        let mut trivia = Trivia { list: vec![] };
+        let mut trivia = Trivia::default();
 
         loop {
             let start = self.cur_pos;
@@ -30,18 +30,18 @@ impl<'src> Lexer<'src> {
             let snippet = SmolStr::new(&self.orig_str[start..self.cur_pos]);
             break match tok.kind {
                 Whitespace => {
-                    trivia.list.push(Trivium::Whitespace(snippet));
+                    trivia.push(Trivium::Whitespace(snippet));
                     continue;
                 }
                 LineComment { doc_style: _ } => {
-                    trivia.list.push(Trivium::LineComment(snippet));
+                    trivia.push(Trivium::LineComment(snippet));
                     continue;
                 }
                 BlockComment {
                     terminated: _,
                     doc_style: _,
                 } => {
-                    trivia.list.push(Trivium::BlockComment(snippet));
+                    trivia.push(Trivium::BlockComment(snippet));
                     continue;
                 }
                 Frontmatter { .. }

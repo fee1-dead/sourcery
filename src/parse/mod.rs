@@ -58,7 +58,7 @@ impl TokenIterator for TokenStreamIter {
             }
             None => {
                 let mut prev = mem::take(&mut self.tprev);
-                prev.list.extend(mem::take(&mut self.last).list);
+                prev.extend(self.last.take());
                 (prev, TokenTree::Eof)
             }
         }

@@ -67,7 +67,7 @@ impl<T> List<T> {
 
     fn optimize(&mut self) {
         if let Some((_, t)) = self.inner.last_mut() {
-            t.list.extend(std::mem::take(&mut self.tlast.list))
+            t.extend(self.tlast.take())
         }
     }
 
@@ -83,7 +83,7 @@ impl<T> List<T> {
     }
 
     pub fn push_trivia(&mut self, t: Trivia) {
-        self.tlast.list.extend(t.list);
+        self.tlast.extend(t);
     }
 
     pub fn into_parts(self) -> (Vec<(T, Trivia)>, Trivia) {

@@ -20,16 +20,29 @@ impl Trivium {
 
 #[derive(Default, Clone, TrivialPrint!)]
 pub struct Trivia {
-    // TODO make private
-    pub list: Vec<Trivium>,
+    list: Vec<Trivium>,
 }
 
 impl Trivia {
+    pub fn push(&mut self, x: Trivium) {
+        self.list.push(x);
+    }
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
     pub fn len(&self) -> usize {
         self.list.len()
+    }
+    pub fn take(&mut self) -> Trivia {
+        Trivia { list: std::mem::take(&mut self.list) }
+    }
+}
+
+impl IntoIterator for Trivia {
+    type IntoIter = std::vec::IntoIter<Trivium>;
+    type Item = Trivium;
+    fn into_iter(self) -> Self::IntoIter {
+        self.list.into_iter()
     }
 }
 
@@ -38,6 +51,18 @@ impl Debug for Trivia {
         let Trivia { list } = self;
         // intentionally switch back to non-fancy formatting
         write!(f, "{list:?}")
+    }
+}
+
+impl Extend<Trivium> for Trivia {
+    fn extend<T: IntoIterator<Item = Trivium>>(&mut self, iter: T) {
+        self.list.extend(iter)
+    }
+}
+
+impl Extend<Trivia> for Trivia {
+    fn extend<T: IntoIterator<Item = Trivia>>(&mut self, iter: T) {
+        self.list.extend(iter.into_iter().flat_map(|x| x.list))
     }
 }
 
