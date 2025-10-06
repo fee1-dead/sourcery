@@ -6,7 +6,7 @@ mod expr;
 pub use expr::{Expr, ExprKind};
 mod token;
 pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
-pub use token::{Ident, Literal, Trivia, Trivium};
+pub use token::{Ident, Literal, Trivia, TriviaN, Trivium};
 pub use token::{Token, kw, tokens};
 mod item;
 pub use item::{Const, Fn, FnParam, FnRet, Item, ItemKind, Mod, TyAlias};
@@ -91,6 +91,16 @@ impl<T> List<T> {
     }
 }
 
+impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
+    fn walk<P: crate::passes::Pass + ?Sized>(&mut self, p: &mut P) {
+        for (x, tr) in &mut self.inner {
+            x.visit(p);
+            p.visit_trivia(tr);
+        }
+        p.visit_trivia(&mut self.tlast);
+    }
+}
+
 #[derive(Debug, TrivialPrint!)]
 pub struct PathSegment {
     pub ident: Ident,
@@ -106,7 +116,7 @@ pub struct Path {
 #[derive(Debug, TrivialPrint!)]
 pub struct VisRestricted {
     pub t2: Trivia,
-    pub in_: Option<(Token![in], Trivia)>,
+    pub in_: Option<(Token![in], TriviaN)>,
     pub path: Path,
     pub t3: Trivia,
 }

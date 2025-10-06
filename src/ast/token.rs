@@ -1,8 +1,8 @@
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 
 use smol_str::SmolStr;
 
-use crate::TrivialPrint;
+use crate::{Print, TrivialPrint};
 
 #[derive(Debug, Clone, TrivialPrint!)]
 pub enum Trivium {
@@ -15,6 +15,36 @@ impl Trivium {
     pub fn snippet(&self) -> &SmolStr {
         let (Trivium::Whitespace(s) | Trivium::LineComment(s) | Trivium::BlockComment(s)) = self;
         s
+    }
+}
+
+/// Like [`Trivia`] but cannot be empty.
+pub struct TriviaN {
+    inner: Trivia,
+}
+
+impl Print for TriviaN {
+    fn print(&self, dest: &mut String) {
+        self.inner.print(dest)
+    }
+}
+
+impl TriviaN {
+    pub fn new(t: Trivia) -> TriviaN {
+        assert!(!t.is_empty());
+        TriviaN { inner: t }
+    }
+
+    pub fn single_space() -> TriviaN {
+        let mut t = Trivia::default();
+        t.extend([Trivium::Whitespace(SmolStr::new_inline(" "))]);
+        Self::new(t)
+    }
+}
+
+impl fmt::Debug for TriviaN {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.inner.fmt(f)
     }
 }
 

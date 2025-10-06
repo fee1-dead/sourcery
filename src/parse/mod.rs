@@ -1,6 +1,6 @@
 use std::{mem, vec};
 
-use crate::ast::{Delimited, Delimiter, Parens};
+use crate::ast::{Delimited, Delimiter, Parens, TriviaN};
 use crate::ast::{File, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
 use crate::ast::{Literal, Token};
@@ -57,7 +57,7 @@ impl TokenIterator for TokenStreamIter {
                 (t, tt)
             }
             None => {
-                let mut prev = mem::take(&mut self.tprev);
+                let mut prev = self.tprev.take();
                 prev.extend(self.last.take());
                 (prev, TokenTree::Eof)
             }
@@ -284,7 +284,7 @@ impl<'src> Parser<'src> {
             .eat_delim(Delimiter::Parens, |t1, mut this| {
                 let (t2, in_, path) = if let Some((t2, _)) = this.eat_ident("in") {
                     let (t2_5, path) = this.parse_path();
-                    (t2, Some((Token![in], t2_5)), path)
+                    (t2, Some((Token![in], TriviaN::new(t2_5))), path)
                 } else {
                     let (t2, ident) = this.parse_ident();
                     (
