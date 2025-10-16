@@ -9,7 +9,7 @@ use crate::ast::{Literal, Token};
 use crate::parse::attr::AttrKind;
 use crate::parse::glue::Gluer;
 use crate::passes::Visit;
-use crate::{Print, TrivialPrint, lex};
+use crate::{Print, lex};
 
 mod attr;
 mod expr;
@@ -20,7 +20,7 @@ mod stmt;
 mod ty;
 mod pat;
 
-#[derive(Default, Clone, Debug, TrivialPrint!, Walk)]
+#[derive(Default, Clone, Debug, Print, Walk)]
 pub struct TokenStream {
     pub t1: Trivia,
     pub tokens: List<TokenTree>,
@@ -77,7 +77,7 @@ impl TokenIterator for Gluer<'_> {
     }
 }
 
-#[derive(Clone, Debug, TrivialPrint!, Walk)]
+#[derive(Clone, Debug, Print, Walk)]
 pub enum TokenTree {
     Group(Box<Delimited<TokenStream>>),
     Punct(Punct),

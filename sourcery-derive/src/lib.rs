@@ -20,3 +20,21 @@ fn derive_walk(mut input: synstructure::Structure) -> proc_macro2::TokenStream {
 synstructure::decl_derive! {
     [Walk] => derive_walk
 }
+
+fn derive_print(input: synstructure::Structure) -> proc_macro2::TokenStream {
+    let print_variants = input.each(|binding| {
+        quote! { ::sourcery::Print::print(#binding, dest) }
+    });
+
+    input.gen_impl(quote! {
+        gen impl ::sourcery::Print for @Self {
+            fn print(&self, dest: &mut String) {
+                match *self { #print_variants }
+            }
+        }
+    })
+}
+
+synstructure::decl_derive! {
+    [Print] => derive_print
+}

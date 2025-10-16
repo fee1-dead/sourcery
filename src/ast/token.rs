@@ -2,9 +2,9 @@ use std::fmt::{self, Debug};
 
 use smol_str::SmolStr;
 
-use crate::{Print, TrivialPrint};
+use crate::Print;
 
-#[derive(Debug, Clone, TrivialPrint!)]
+#[derive(Debug, Clone, Print)]
 pub enum Trivium {
     Whitespace(SmolStr),
     LineComment(SmolStr),
@@ -48,7 +48,7 @@ impl fmt::Debug for TriviaN {
     }
 }
 
-#[derive(Default, Clone, TrivialPrint!)]
+#[derive(Default, Clone, Print)]
 pub struct Trivia {
     list: Vec<Trivium>,
 }
@@ -141,8 +141,7 @@ pub(crate) mod grouping {
         Parens,
     }
 
-    #[derive(Clone, crate::TrivialPrint!)]
-    #[derive_args(where(T: Print))]
+    #[derive(Clone, crate::Print)]
     pub enum Delimited<T> {
         Braces(Braces<T>),
         Brackets(Brackets<T>),
@@ -263,7 +262,7 @@ define_tokens! {
     );
 }
 
-#[derive(Clone, TrivialPrint!)]
+#[derive(Clone, Print)]
 pub struct Ident(pub SmolStr);
 
 impl Debug for Ident {
@@ -272,7 +271,7 @@ impl Debug for Ident {
     }
 }
 
-#[derive(Debug, Clone, TrivialPrint!)]
+#[derive(Debug, Clone, Print)]
 pub struct Literal {
     pub symbol: SmolStr,
     pub suffix: SmolStr,

@@ -1,8 +1,8 @@
 use sourcery_derive::Walk;
 
-use crate::ast::{Ident, TrivialPrint};
+use crate::ast::{Ident, Print};
 
-#[derive(Debug, TrivialPrint!, Walk)]
+#[derive(Debug, Print, Walk)]
 pub enum Pat {
     Ident(Ident),
 }

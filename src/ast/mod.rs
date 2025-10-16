@@ -18,8 +18,7 @@ pub use stmt::{Block, BlockInner, Stmt, StmtKind};
 mod pat;
 pub use pat::Pat;
 
-use crate::TrivialPrint;
-use crate::print::Print;
+use crate::Print;
 
 /// A list of items separated by trivia. Does not contain leading trivia
 /// but may contain trailing trivia.
@@ -102,12 +101,12 @@ impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
     }
 }
 
-#[derive(Debug, TrivialPrint!, Walk)]
+#[derive(Debug, Print, Walk)]
 pub struct PathSegment {
     pub ident: Ident,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, Print)]
 pub struct Path {
     pub leading_colon: Option<(Token![::], Trivia)>,
     pub seg1: PathSegment,
@@ -115,7 +114,7 @@ pub struct Path {
     pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
 }
 
-#[derive(Debug, TrivialPrint!, Walk)]
+#[derive(Debug, Print, Walk)]
 pub struct VisRestricted {
     pub t2: Trivia,
     pub in_: Option<(Token![in], TriviaN)>,
@@ -123,7 +122,7 @@ pub struct VisRestricted {
     pub t3: Trivia,
 }
 
-#[derive(Debug, TrivialPrint!, Walk)]
+#[derive(Debug, Print, Walk)]
 pub enum Visibility {
     Public {
         pub_: Token![pub],
@@ -135,14 +134,14 @@ pub enum Visibility {
     },
 }
 
-#[derive(Debug, TrivialPrint!, Walk)]
+#[derive(Debug, Print, Walk)]
 pub struct Module {
     pub t1: Trivia,
     pub attrs: List<Attribute>,
     pub items: List<Item>,
 }
 
-#[derive(Debug, TrivialPrint!, Walk)]
+#[derive(Debug, Print, Walk)]
 pub struct File {
     // shebang, frontmatter
     pub module: Module,
