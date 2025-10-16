@@ -1,11 +1,14 @@
 use std::{mem, vec};
 
+use sourcery_derive::Walk;
+
 use crate::ast::{Delimited, Delimiter, Parens, TriviaN};
 use crate::ast::{File, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
 use crate::ast::{Literal, Token};
 use crate::parse::attr::AttrKind;
 use crate::parse::glue::Gluer;
+use crate::passes::Visit;
 use crate::{Print, TrivialPrint, lex};
 
 mod attr;
@@ -17,7 +20,7 @@ mod stmt;
 mod ty;
 mod pat;
 
-#[derive(Default, Clone, Debug, TrivialPrint!)]
+#[derive(Default, Clone, Debug, TrivialPrint!, Walk)]
 pub struct TokenStream {
     pub t1: Trivia,
     pub tokens: List<TokenTree>,
@@ -74,7 +77,7 @@ impl TokenIterator for Gluer<'_> {
     }
 }
 
-#[derive(Clone, Debug, TrivialPrint!)]
+#[derive(Clone, Debug, TrivialPrint!, Walk)]
 pub enum TokenTree {
     Group(Box<Delimited<TokenStream>>),
     Punct(Punct),
@@ -120,6 +123,12 @@ pub enum Punct {
     Caret,
     Percent,
     RArrow,
+}
+
+impl Visit for Punct {
+    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {
+        
+    }
 }
 
 macro_rules! impl_print_for_punct {

@@ -157,6 +157,13 @@ pub(crate) mod grouping {
             x
         }
 
+        pub fn inner_mut(&mut self) -> &mut T {
+            let (Delimited::Braces(Braces(x))
+            | Delimited::Brackets(Brackets(x))
+            | Delimited::Parens(Parens(x))) = self;
+            x
+        }
+
         pub fn delimiter(&self) -> Delimiter {
             match self {
                 Delimited::Braces(_) => Delimiter::Braces,
@@ -189,6 +196,10 @@ macro_rules! define_tokens {
                         out.push_str(stringify!($kt))
                     }
                 }
+                impl crate::passes::Visit for $kname {
+                    #[inline]
+                    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {}
+                }
             )*
         }
         pub mod tokens {
@@ -200,6 +211,11 @@ macro_rules! define_tokens {
                     fn print(&self, out: &mut String) {
                         out.push_str(stringify!($tt))
                     }
+                }
+
+                impl crate::passes::Visit for $tname {
+                    #[inline]
+                    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {}
                 }
             )*
         }

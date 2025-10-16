@@ -1,0 +1,12 @@
+[package]
+name = "sourcery-derive"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+proc-macro2 = "1.0.101"
+synstructure = "0.13.2"
+quote = "1.0.41"
+
+[lib]
+proc-macro = true

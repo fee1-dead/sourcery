@@ -1,24 +1,51 @@
 use crate::ast::{
-    Attribute, Const, File, Ident, Item, ItemKind, List, Mod, Module, Path, PathSegment, Trivia,
-    TriviaN, VisRestricted, Visibility,
+    Attribute, AttributeInner, AttributeStyle, AttributeValue, BlockInner, Braces, Brackets, Const, Delimited, Expr, ExprKind, File, Fn, FnParam, FnRet, Ident, Item, ItemKind, List, Literal, Mod, Module, Parens, Pat, Path, PathSegment, Stmt, StmtKind, Trivia, TriviaN, Ty, TyAlias, TyArray, TySlice, VisRestricted, Visibility
 };
+use crate::parse::{TokenStream, TokenTree};
 
 mod minify;
 
+macro_rules! visit_default_noop {
+    ($($visit:ident($Ty:ty);)*) => {
+        $(fn $visit(&mut self, _value: &mut $Ty) {
+            #[expect(non_local_definitions)]
+            impl Visit for $Ty {
+                fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+                    p.$visit(self);
+                }
+            }
+        })*
+    };
+}
+
 macro_rules! visit_default_walk {
-    ($($visit:ident($ty:ty);)*) => {
-        $(fn $visit(&mut self, value: &mut $ty) { value.walk(self); })*
+    ($($visit:ident($Ty:ty);)*) => {
+        $(fn $visit(&mut self, value: &mut $Ty) {
+            #[expect(non_local_definitions)]
+            impl Visit for $Ty {
+                fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+                    p.$visit(self);
+                }
+            }
+            Walk::walk(value, self);
+        })*
     };
 }
 
 pub trait Pass {
-    fn visit_trivia(&mut self, _t: &mut Trivia) {}
-    fn visit_trivia_n(&mut self, _t: &mut TriviaN) {}
-    fn visit_ident(&mut self, _i: &mut Ident) {}
+    visit_default_noop! {
+        visit_trivia(Trivia);
+        visit_trivia_n(TriviaN);
+        visit_ident(Ident);
+        visit_literal(Literal);
+    }
 
     visit_default_walk! {
         visit_file(File);
         visit_attr(Attribute);
+        visit_attr_inner(AttributeInner);
+        visit_attr_style(AttributeStyle);
+        visit_attr_value(AttributeValue);
         visit_item(Item);
         visit_item_kind(ItemKind);
         visit_mod(Mod);
@@ -28,6 +55,22 @@ pub trait Pass {
         visit_const(Const);
         visit_path(Path);
         visit_path_segment(PathSegment);
+        visit_ty(Ty);
+        visit_ty_slice(TySlice);
+        visit_ty_array(TyArray);
+        visit_expr(Expr);
+        visit_expr_kind(ExprKind);
+        visit_fn(Fn);
+        visit_fn_param(FnParam);
+        visit_fn_ret(FnRet);
+        visit_block(BlockInner);
+        visit_stmt(Stmt);
+        visit_stmt_kind(StmtKind);
+        visit_ty_alias(TyAlias);
+        visit_pat(Pat);
+        // only encountered inside macros and attributes
+        visit_token_stream(TokenStream);
+        visit_token_tree(TokenTree);
     }
 
     fn visit_list<T: Walk + Visit>(&mut self, l: &mut List<T>) {
@@ -39,24 +82,55 @@ pub trait Visit {
     fn visit<P: Pass + ?Sized>(&mut self, p: &mut P);
 }
 
-macro_rules! impl_visit {
-    ($Ty:ident($method:ident)) => {
-        impl Visit for $Ty {
-            fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
-                p.$method(self);
-            }
-        }
-    };
+impl<T: Visit> Visit for Box<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        T::visit(self, p);
+    }
 }
 
-impl_visit!(Attribute(visit_attr));
-impl_visit!(Item(visit_item));
-
-impl Visit for Option<(Visibility, Trivia)> {
+impl<T: Walk + Visit> Visit for List<T> {
     fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        if let Some((vis, t)) = self {
-            p.visit_vis(vis);
-            p.visit_trivia(t);
+        p.visit_list(self)
+    }
+}
+
+impl<T: Visit> Visit for Brackets<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        self.0.visit(p)
+    }
+}
+
+impl<T: Visit> Visit for Braces<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        self.0.visit(p)
+    }
+}
+
+impl<T: Visit> Visit for Parens<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        self.0.visit(p)
+    }
+}
+
+impl<T: Visit> Visit for Delimited<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        self.inner_mut().visit(p);
+    }
+}
+
+impl<T1: Visit, T2: Visit> Visit for (T1, T2) {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        let (a, b) = self;
+        a.visit(p);
+        b.visit(p);
+    }
+}
+
+impl<T: Visit> Visit for Option<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        match self {
+            Some(x) => x.visit(p),
+            None => (),
         }
     }
 }
@@ -65,111 +139,6 @@ pub trait Walk {
     fn walk<P: Pass + ?Sized>(&mut self, p: &mut P);
 }
 
-impl Walk for File {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        p.visit_module(&mut self.module);
-    }
-}
-
-impl Walk for Attribute {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        p.visit_trivia(&mut self.t1);
-    }
-}
-
-impl Walk for Item {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        p.visit_list(&mut self.attrs);
-        p.visit_item_kind(&mut self.kind);
-    }
-}
-
-impl Walk for ItemKind {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        match self {
-            ItemKind::Mod(m) => p.visit_mod(m),
-            ItemKind::Const(c) => p.visit_const(c),
-            ItemKind::Fn(f) => todo!(),
-            ItemKind::TyAlias(_) => todo!(),
-        }
-    }
-}
-
-impl Walk for Mod {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        let Mod {
-            vis,
-            kw: _,
-            t1,
-            name,
-            t2,
-            semi: _,
-            content,
-        } = self;
-        vis.visit(p);
-        p.visit_trivia(t1);
-        p.visit_ident(name);
-        p.visit_trivia(t2);
-        if let Some(module) = content {
-            p.visit_module(&mut module.0);
-        }
-    }
-}
-
-impl Walk for Const {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        let Const {
-            vis,
-            kw: _,
-            t1,
-            name,
-            t2,
-            colon: _,
-            t3,
-            ty,
-            t4,
-            eq: _,
-            t5,
-            expr,
-            t6,
-            semi: _,
-        } = self;
-        vis.visit(p);
-        p.visit_trivia(t1);
-        p.visit_ident(name);
-        p.visit_trivia(t2);
-        p.visit_trivia(t3);
-        todo!()
-    }
-}
-
-impl Walk for Visibility {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        match self {
-            Visibility::Public { pub_: _ } => {}
-            Visibility::Restricted {
-                pub_: _,
-                t1,
-                parens,
-            } => {
-                p.visit_trivia(t1);
-                p.visit_vis_restricted(&mut parens.0);
-            }
-        }
-    }
-}
-
-impl Walk for VisRestricted {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        let VisRestricted { t2, in_, path, t3 } = self;
-        p.visit_trivia(t2);
-        if let Some((_, t)) = in_ {
-            p.visit_trivia_n(t);
-        }
-        p.visit_path(path);
-        p.visit_trivia(t3);
-    }
-}
 
 impl Walk for Path {
     fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
@@ -187,20 +156,5 @@ impl Walk for Path {
             p.visit_trivia(t2);
             p.visit_path_segment(seg);
         }
-    }
-}
-
-impl Walk for PathSegment {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        let PathSegment { ident } = self;
-        p.visit_ident(ident);
-    }
-}
-
-impl Walk for Module {
-    fn walk<P: Pass + ?Sized>(&mut self, p: &mut P) {
-        p.visit_trivia(&mut self.t1);
-        p.visit_list(&mut self.attrs);
-        p.visit_list(&mut self.items);
     }
 }

@@ -5,13 +5,14 @@ pub use attr::{Attribute, AttributeInner, AttributeStyle, AttributeValue};
 mod expr;
 pub use expr::{Expr, ExprKind};
 mod token;
+use sourcery_derive::Walk;
 pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, TriviaN, Trivium};
 pub use token::{Token, kw, tokens};
 mod item;
 pub use item::{Const, Fn, FnParam, FnRet, Item, ItemKind, Mod, TyAlias};
 mod ty;
-pub use ty::{ArrayTy, Ty};
+pub use ty::{Ty, TyArray, TySlice};
 mod stmt;
 pub use stmt::{Block, BlockInner, Stmt, StmtKind};
 mod pat;
@@ -101,7 +102,7 @@ impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
     }
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct PathSegment {
     pub ident: Ident,
 }
@@ -110,10 +111,11 @@ pub struct PathSegment {
 pub struct Path {
     pub leading_colon: Option<(Token![::], Trivia)>,
     pub seg1: PathSegment,
+    // Not `List` because this one is self-contained (no trailing trivia)
     pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct VisRestricted {
     pub t2: Trivia,
     pub in_: Option<(Token![in], TriviaN)>,
@@ -121,7 +123,7 @@ pub struct VisRestricted {
     pub t3: Trivia,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub enum Visibility {
     Public {
         pub_: Token![pub],
@@ -133,14 +135,14 @@ pub enum Visibility {
     },
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct Module {
     pub t1: Trivia,
     pub attrs: List<Attribute>,
     pub items: List<Item>,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct File {
     // shebang, frontmatter
     pub module: Module,

@@ -1,9 +1,11 @@
+use sourcery_derive::Walk;
+
 use crate::TrivialPrint;
 use crate::ast::token::grouping::Brackets;
 use crate::ast::{Delimited, Expr, Path, Token, Trivia};
 use crate::parse::TokenStream;
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct Attribute {
     pub pound: Token![#],
     pub style: AttributeStyle,
@@ -11,7 +13,7 @@ pub struct Attribute {
     pub inner: Brackets<AttributeInner>,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct AttributeInner {
     pub t2: Trivia,
     pub path: Path,
@@ -19,13 +21,13 @@ pub struct AttributeInner {
     pub tlast: Trivia,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub enum AttributeStyle {
     Outer,
     Inner(Trivia, Token![!]),
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub enum AttributeValue {
     None,
     Value {

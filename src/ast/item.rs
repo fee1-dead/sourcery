@@ -1,10 +1,12 @@
 use std::fmt::Debug;
+use sourcery_derive::Walk;
+
 use crate::ast::tokens::Semi;
 use crate::ast::{Block, Expr, Parens, Pat, Ty};
 use crate::TrivialPrint;
 use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub enum ItemKind {
     Const(Const),
     Mod(Mod),
@@ -12,13 +14,13 @@ pub enum ItemKind {
     Fn(Fn),
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct Item {
     pub attrs: List<Attribute>,
     pub kind: ItemKind,
 }
  
-#[derive(TrivialPrint!)]
+#[derive(TrivialPrint!, Walk)]
 pub struct Mod {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![mod],
@@ -58,7 +60,7 @@ impl Debug for Mod {
     }
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct TyAlias {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![type],
@@ -72,7 +74,7 @@ pub struct TyAlias {
     pub semi: Token![;],
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct FnParam {
     pub attrs: List<Attribute>,
     pub pat: Pat,
@@ -83,14 +85,14 @@ pub struct FnParam {
     pub comma: Option<(Trivia, Token![,])>,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct FnRet {
     pub arrow: Token![->],
     pub t2_5: Trivia,
     pub ty: Ty,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct Fn {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![fn],
@@ -103,7 +105,7 @@ pub struct Fn {
     pub block: Block,
 }
 
-#[derive(Debug, TrivialPrint!)]
+#[derive(Debug, TrivialPrint!, Walk)]
 pub struct Const {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![const],

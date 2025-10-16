@@ -3,10 +3,14 @@ name = "sourcery"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = ["sourcery-derive"]
+
 [dependencies]
 macro_rules_attribute = "0.2.2"
 ra-ap-rustc_lexer = "0.119.0"
 smol_str = "0.3.2"
+sourcery-derive = { path = "sourcery-derive" }
 
 [lib]
 name = "sourcery"
