@@ -11,6 +11,3 @@ pub use parse::{parse, parse_to_tokenstream};
 pub use print::Print;
 
 pub use sourcery_derive::{Print, Walk};
-
-#[macro_use]
-extern crate macro_rules_attribute;

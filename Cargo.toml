@@ -7,7 +7,6 @@ edition = "2024"
 members = ["sourcery-derive"]
 
 [dependencies]
-macro_rules_attribute = "0.2.2"
 ra-ap-rustc_lexer = "0.119.0"
 smol_str = "0.3.2"
 sourcery-derive = { path = "sourcery-derive" }
