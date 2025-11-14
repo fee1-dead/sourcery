@@ -4,6 +4,7 @@ use crate::ast::{
 use crate::parse::{TokenStream, TokenTree};
 
 mod minify;
+pub use minify::Minify;
 
 macro_rules! visit_default_noop {
     ($($visit:ident($Ty:ty);)*) => {

@@ -1,6 +1,5 @@
 use crate::ast::{
-    Attribute, Braces, Const, Delimiter, Fn, FnParam, FnRet, Item, ItemKind, List, Mod, Parens,
-    Token, Trivia, TyAlias, Visibility,
+    Attribute, Braces, Const, Delimiter, Fn, FnParam, FnRet, Item, ItemKind, List, Mod, Parens, Token, Trivia, TriviaN, TyAlias, Visibility
 };
 use crate::parse::attr::AttrKind;
 use crate::parse::{Parser, Punct};
@@ -93,7 +92,7 @@ impl Parser<'_> {
         Mod {
             vis,
             kw: Token![mod],
-            t1,
+            t1: TriviaN::new(t1),
             name,
             t2,
             semi,

@@ -1,12 +1,14 @@
+use sourcery::passes::{Minify, Pass};
 use sourcery::{Print, parse};
 
 fn main() {
     let src = " /* w */ mod foo {
         mod barrr ; // a
     }";
-    let f = parse(src);
-    println!("{f:#?}");
+    let mut f = parse(src);
     let mut s = String::new();
+    Minify.visit_file(&mut f);
+
     f.print(&mut s);
-    assert_eq!(src, s);
+    println!("{s}");
 }

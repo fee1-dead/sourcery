@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use sourcery_derive::Walk;
 
 use crate::ast::tokens::Semi;
-use crate::ast::{Block, Expr, Parens, Pat, Ty};
+use crate::ast::{Block, Expr, Parens, Pat, TriviaN, Ty};
 use crate::Print;
 use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 
@@ -24,7 +24,7 @@ pub struct Item {
 pub struct Mod {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![mod],
-    pub t1: Trivia,
+    pub t1: TriviaN,
     pub name: Ident,
     pub t2: Trivia,
     pub semi: Option<Token![;]>,
