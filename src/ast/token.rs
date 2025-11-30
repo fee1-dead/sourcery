@@ -16,6 +16,9 @@ impl Trivium {
         let (Trivium::Whitespace(s) | Trivium::LineComment(s) | Trivium::BlockComment(s)) = self;
         s
     }
+    pub const fn single_space() -> Self {
+        const { Self::Whitespace(SmolStr::new_inline(" ")) }
+    }
 }
 
 /// Like [`Trivia`] but cannot be empty.
@@ -40,6 +43,10 @@ impl TriviaN {
         t.extend([Trivium::Whitespace(SmolStr::new_inline(" "))]);
         Self::new(t)
     }
+    
+    pub fn take(&mut self) -> TriviaN {
+        TriviaN { inner: self.inner.take() }
+    }
 }
 
 impl fmt::Debug for TriviaN {
@@ -54,6 +61,11 @@ pub struct Trivia {
 }
 
 impl Trivia {
+    pub fn with_capacity(cap: usize) -> Trivia {
+        Self {
+            list: Vec::with_capacity(cap),
+        }
+    }
     pub fn push(&mut self, x: Trivium) {
         self.list.push(x);
     }
@@ -63,8 +75,36 @@ impl Trivia {
     pub fn len(&self) -> usize {
         self.list.len()
     }
+    pub fn last(&self) -> Option<&Trivium> {
+        self.list.last()
+    }
+    pub fn iter(&'_ self) -> impl Iterator<Item = &'_ Trivium> {
+        self.list.iter()
+    }
+    pub fn iter_mut(&'_ mut self) -> impl Iterator<Item = &'_ mut Trivium> {
+        self.list.iter_mut()
+    }
+    pub fn trim_whitespace(self) -> Trivia {
+        let left = self
+            .list
+            .iter()
+            .take_while(|x| matches!(x, Trivium::Whitespace(..)))
+            .count();
+        let remaining = (self.list.len() - left).saturating_sub(
+            self.list
+                .iter()
+                .rev()
+                .take_while(|x| matches!(x, Trivium::Whitespace(..)))
+                .count(),
+        );
+        Trivia {
+            list: self.list.into_iter().skip(left).take(remaining).collect(),
+        }
+    }
     pub fn take(&mut self) -> Trivia {
-        Trivia { list: std::mem::take(&mut self.list) }
+        Trivia {
+            list: std::mem::take(&mut self.list),
+        }
     }
 }
 
@@ -93,6 +133,12 @@ impl Extend<Trivium> for Trivia {
 impl Extend<Trivia> for Trivia {
     fn extend<T: IntoIterator<Item = Trivia>>(&mut self, iter: T) {
         self.list.extend(iter.into_iter().flat_map(|x| x.list))
+    }
+}
+
+impl From<TriviaN> for Trivia {
+    fn from(value: TriviaN) -> Self {
+        value.inner
     }
 }
 
@@ -197,7 +243,9 @@ macro_rules! define_tokens {
                 }
                 impl crate::passes::Visit for $kname {
                     #[inline]
-                    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {}
+                    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, p: &mut P) {
+                        p.visit_token(const { stringify!($kname).len() })
+                    }
                 }
             )*
         }
@@ -214,7 +262,9 @@ macro_rules! define_tokens {
 
                 impl crate::passes::Visit for $tname {
                     #[inline]
-                    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {}
+                    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, p: &mut P) {
+                        p.visit_token(const { stringify!($tt).len() })
+                    }
                 }
             )*
         }

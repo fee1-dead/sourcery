@@ -1,47 +1,51 @@
-//! Parse-Print tests ensure that something can be parsed and printed.
-
 use std::backtrace::Backtrace;
 use std::cell::Cell;
 use std::env::current_dir;
 use std::fs::read_to_string;
-use std::panic::catch_unwind;
+use std::panic::{UnwindSafe, catch_unwind};
 use std::path::Path;
 
 use libtest_mimic::{Failed, Trial};
 use walkdir::WalkDir;
 
-static VARIANTS: &[Variant] = &[
-    Variant {
-        name: "FilePrint",
-        runner: |content| {
-            let file = sourcery::parse(&content);
-            let mut content2 = String::new();
-            sourcery::Print::print(&file, &mut content2);
-            if content != content2 {
-                panic!("different content\norig   : {content:?}\nprinted: {content2:?}");
-            }
-        },
+static IDEMPOTENCE: Variant<String> = Variant {
+    name: "Idempotence",
+    runner: |content| {
+        let mut file = sourcery::parse(&content);
+        let mut content2 = String::new();
+        sourcery::passes::format_with_style_guide(&mut file);
+        sourcery::Print::print(&file, &mut content2);
+        let content = content.trim_end();
+        let content2 = content2.trim_end();
+        if content != content2 {
+            panic!("different content\norig   : {content:?}\nprinted: {content2:?}");
+        }
     },
-    Variant {
-        name: "TokenStreamPrint",
-        runner: |content| {
-            let file = sourcery::parse_to_tokenstream(&content);
-            let mut content2 = String::new();
-            sourcery::Print::print(&file, &mut content2);
-            if content != content2 {
-                panic!("different content\norig   : {content:?}\nprinted: {content2:?}");
-            }
-        },
-    },
-];
+};
 
-pub struct Variant {
+static FMT: Variant<(String, String)> = Variant {
+    name: "Format",
+    runner: |(content1, minified)| {
+        let mut file = sourcery::parse(&content1);
+        let mut content2 = String::new();
+        sourcery::passes::format_with_style_guide(&mut file);
+        sourcery::Print::print(&file, &mut content2);
+        let minified = minified.trim_end();
+        let content2 = content2.trim_end();
+        if minified != content2 {
+            panic!("different content\nexpected : {minified:?}\nformatted: {content2:?}");
+        }
+    },
+};
+
+
+pub struct Variant<T> {
     name: &'static str,
-    runner: fn(String),
+    runner: fn(T),
 }
 
-impl Variant {
-    pub fn make_trial(&'static self, path: String, content: String) -> Trial {
+impl<T: UnwindSafe + Send> Variant<T> {
+    pub fn make_trial(&'static self, path: String, content: T) -> Trial {
         let runner = move || {
             thread_local! {
                 static BACKTRACE: Cell<Option<Backtrace>> = const { Cell::new(None) };
@@ -72,24 +76,31 @@ impl Variant {
     }
 }
 
+// TODO dedup
 pub fn add_tests(tests: &mut Vec<Trial>) -> color_eyre::Result<()> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let current_dir = current_dir()?;
-    let walk = WalkDir::new(manifest_dir.join("tests/pp"));
+    let walk = WalkDir::new(manifest_dir.join("tests/style"));
 
     for dir in walk {
         let ent = dir?;
         if !ent.file_type().is_file() {
             continue;
         }
+
         let path = ent.into_path();
         let name = path.strip_prefix(&current_dir)?.display().to_string();
         let content = read_to_string(&path)?;
-        tests.extend(
-            VARIANTS
-                .iter()
-                .map(|v| v.make_trial(name.clone(), content.clone())),
-        );
+        if name.ends_with(".fmt.rs") {
+            tests.push(IDEMPOTENCE.make_trial(name, content))
+        } else {
+            let p = path.with_extension("fmt.rs");
+            if !p.exists() {
+                panic!("need {}", p.display());
+            }
+            let expected = read_to_string(&p)?;
+            tests.push(FMT.make_trial(name, (content, expected)))
+        }
     }
 
     Ok(())
@@ -107,4 +118,3 @@ fn main() -> color_eyre::Result<ExitCode> {
     add_tests(&mut tests)?;
     Ok(libtest_mimic::run(&args, tests).exit_code())
 }
-

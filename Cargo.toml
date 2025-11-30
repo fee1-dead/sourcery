@@ -21,7 +21,17 @@ path = "src/main.rs"
 
 [[test]]
 name = "pp"
-path = "tests/main.rs"
+path = "tests/pp.rs"
+harness = false
+
+[[test]]
+name = "minify"
+path = "tests/minify.rs"
+harness = false
+
+[[test]]
+name = "fmt"
+path = "tests/fmt.rs"
 harness = false
 
 [dev-dependencies]

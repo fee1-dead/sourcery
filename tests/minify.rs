@@ -108,3 +108,17 @@ pub fn add_tests(tests: &mut Vec<Trial>) -> color_eyre::Result<()> {
 
     Ok(())
 }
+
+use std::process::ExitCode;
+
+use libtest_mimic::Arguments;
+
+fn main() -> color_eyre::Result<ExitCode> {
+    let args = Arguments::from_args();
+
+    let mut tests = vec![];
+
+    add_tests(&mut tests)?;
+    Ok(libtest_mimic::run(&args, tests).exit_code())
+}
+

@@ -351,6 +351,11 @@ pub fn parse(s: &str) -> File {
     File { module }
 }
 
+#[cfg(test)]
+pub fn parse_trivia(s: &str) -> Trivia {
+    Parser::new(s).eat_eof().unwrap()
+}
+
 pub fn parse_to_tokenstream(s: &str) -> TokenStream {
     Gluer::new(lex::tokenize(s)).collect()
 }

@@ -6,6 +6,9 @@ use crate::parse::{TokenStream, TokenTree};
 mod minify;
 pub use minify::Minify;
 
+mod style;
+pub use style::format_with_style_guide;
+
 macro_rules! visit_default_noop {
     ($($visit:ident($Ty:ty);)*) => {
         $(fn $visit(&mut self, _value: &mut $Ty) {
@@ -34,6 +37,11 @@ macro_rules! visit_default_walk {
 }
 
 pub trait Pass {
+    /// Visit a punctuation or keyword that does not contain newline.
+    ///
+    /// The token cannot be changed but we can get the size.
+    fn visit_token(&mut self, _size: usize) {}
+
     visit_default_noop! {
         visit_trivia(Trivia);
         visit_trivia_n(TriviaN);
@@ -148,7 +156,8 @@ impl Walk for Path {
             seg1,
             rest,
         } = self;
-        if let Some((_, t)) = leading_colon {
+        if let Some((c, t)) = leading_colon {
+            c.visit(p);
             p.visit_trivia(t);
         }
         p.visit_path_segment(seg1);
