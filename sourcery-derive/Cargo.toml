@@ -7,6 +7,7 @@ edition = "2024"
 proc-macro2 = "1.0.101"
 synstructure = "0.13.2"
 quote = "1.0.41"
+syn = "2.0.111"
 
 [lib]
 proc-macro = true

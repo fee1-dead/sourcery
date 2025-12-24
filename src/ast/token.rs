@@ -247,6 +247,9 @@ macro_rules! define_tokens {
                         p.visit_token(const { stringify!($kname).len() })
                     }
                 }
+                impl crate::passes::style::spaces::Respace for $kname {
+                    fn respace(&mut self, _: &mut crate::passes::style::spaces::Spaces) {}
+                }
             )*
         }
         pub mod tokens {
@@ -265,6 +268,10 @@ macro_rules! define_tokens {
                     fn visit<P: crate::passes::Pass + ?Sized>(&mut self, p: &mut P) {
                         p.visit_token(const { stringify!($tt).len() })
                     }
+                }
+
+                impl crate::passes::style::spaces::Respace for $tname {
+                    fn respace(&mut self, _: &mut crate::passes::style::spaces::Spaces) {}
                 }
             )*
         }

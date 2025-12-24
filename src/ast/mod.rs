@@ -5,7 +5,7 @@ pub use attr::{Attribute, AttributeInner, AttributeStyle, AttributeValue};
 mod expr;
 pub use expr::{Expr, ExprKind};
 mod token;
-use sourcery_derive::Walk;
+use sourcery_derive::{Respace, Walk};
 pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, TriviaN, Trivium};
 pub use token::{Token, kw, tokens};
@@ -19,6 +19,7 @@ mod pat;
 pub use pat::Pat;
 
 use crate::Print;
+use crate::passes::style::spaces::{Respace, s0};
 
 /// A list of items separated by trivia. Does not contain leading trivia
 /// but may contain trailing trivia.
@@ -71,6 +72,10 @@ impl<T> List<T> {
         }
     }
 
+    pub fn take(&mut self) -> List<T> {
+        List { inner: std::mem::take(&mut self.inner), tlast: self.tlast.take() }
+    }
+
     pub fn push_value(&mut self, x: T) {
         self.optimize();
         assert!(self.tlast.is_empty());
@@ -89,6 +94,12 @@ impl<T> List<T> {
     pub fn into_parts(self) -> (Vec<(T, Trivia)>, Trivia) {
         (self.inner, self.tlast)
     }
+
+    pub fn from_parts(inner: Vec<(T, Trivia)>, tlast: Trivia) -> Self {
+        let mut this = List { inner, tlast };
+        this.optimize();
+        this
+    }
 }
 
 impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
@@ -101,7 +112,7 @@ impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
     }
 }
 
-#[derive(Debug, Print, Walk)]
+#[derive(Debug, Print, Walk, Respace)]
 pub struct PathSegment {
     pub ident: Ident,
 }
@@ -112,6 +123,21 @@ pub struct Path {
     pub seg1: PathSegment,
     // Not `List` because this one is self-contained (no trailing trivia)
     pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
+}
+
+impl Respace for Path {
+    fn respace(&mut self, v: &mut crate::passes::style::spaces::Spaces) {
+        let Path { leading_colon, seg1, rest } = self;
+        if let Some((_, t)) = leading_colon {
+            s0(t);
+        }
+        seg1.respace(v);
+        for (t, _, tt, s) in rest {
+            s0(t);
+            s0(tt);
+            s.respace(v);
+        }
+    }
 }
 
 #[derive(Debug, Print, Walk)]

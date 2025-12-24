@@ -1,7 +1,7 @@
 use crate::ast::{File, Trivia};
 use crate::passes::Pass;
 
-mod spaces;
+pub mod spaces;
 
 struct SizeEstimator(usize);
 

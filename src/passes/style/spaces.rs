@@ -1,7 +1,7 @@
-use crate::ast::{self, Const, Fn, Trivia, TriviaN, Trivium, Visibility};
+use crate::ast::{self, Brackets, Const, Fn, Ident, Literal, Trivia, TriviaN, Trivium, Visibility};
 use crate::passes::Pass;
 
-pub(super) struct Spaces;
+pub(crate) struct Spaces;
 
 /// Shape the passed trivia so that it "looks" like a singular space. This means block comments are always delimited by single spaces.
 fn shrink_single_space(t: Trivia) -> TriviaN {
@@ -9,14 +9,14 @@ fn shrink_single_space(t: Trivia) -> TriviaN {
     if t.iter().any(|x| match x {
         Trivium::LineComment(_) => true,
         Trivium::BlockComment(bc) => bc.contains('\n'),
-        Trivium::Whitespace(_) => false
+        Trivium::Whitespace(_) => false,
     }) {
         return TriviaN::new(t);
     }
 
     let mut had_whitespace = false;
     let mut new = Trivia::default();
-    
+
     for x in t {
         match x {
             Trivium::BlockComment(_) => {
@@ -33,7 +33,10 @@ fn shrink_single_space(t: Trivia) -> TriviaN {
             Trivium::LineComment(_) => unreachable!(),
         }
     }
-    if new.last().is_none_or(|x| matches!(x, Trivium::BlockComment(_))) {
+    if new
+        .last()
+        .is_none_or(|x| matches!(x, Trivium::BlockComment(_)))
+    {
         new.push(Trivium::single_space())
     }
     TriviaN::new(new)
@@ -49,7 +52,7 @@ mod tests {
     use crate::Print;
     use crate::ast::Trivia;
     use crate::passes::style::spaces::{shrink_no_space, shrink_single_space};
-    
+
     fn test_glue<X: Into<Trivia>>(f: fn(Trivia) -> X) -> impl Fn(&str) -> String {
         move |s| {
             let mut out = String::new();
@@ -64,10 +67,13 @@ mod tests {
         assert_eq!(" ", sss(""));
         assert_eq!(" /* w */ ", sss("/* w */"));
         assert_eq!(" ", sss("\n \n \n\n \n \n \n\n    "));
-        assert_eq!(" /**/ /**/ ", sss("
+        assert_eq!(
+            " /**/ /**/ ",
+            sss("
          /**//**/
           
-        "));
+        ")
+        );
     }
 
     #[test]
@@ -76,10 +82,13 @@ mod tests {
         assert_eq!("", sss("    \n\n \n \n \n \n"));
         assert_eq!("/* w */", sss("/* w */"));
         assert_eq!("", sss("\n \n \n\n \n \n \n\n    "));
-        assert_eq!("/**/ /**/", sss("
+        assert_eq!(
+            "/**/ /**/",
+            sss("
          /**//**/
           
-        "));
+        ")
+        );
     }
 }
 
@@ -94,7 +103,12 @@ fn fixup_path(x: &mut ast::Path) {
 }
 
 fn fixup_visibility_pair(x: &mut (Visibility, Trivia)) {
-    if let Visibility::Restricted { pub_: _, t1, parens } = &mut x.0 {
+    if let Visibility::Restricted {
+        pub_: _,
+        t1,
+        parens,
+    } = &mut x.0
+    {
         *t1 = shrink_no_space(t1.take());
         parens.0.t2 = shrink_no_space(parens.0.t2.take());
         if let Some((_, x)) = &mut parens.0.in_ {
@@ -104,15 +118,69 @@ fn fixup_visibility_pair(x: &mut (Visibility, Trivia)) {
         fixup_path(&mut parens.0.path);
     }
     x.1 = shrink_single_space(x.1.take()).into();
+}
 
+pub trait AnyTrivia: From<TriviaN> {
+    fn take_t(&mut self) -> Trivia;
+    fn set(&mut self, t: TriviaN) { *self = t.into() }
+}
+ 
+impl AnyTrivia for Trivia {
+    fn take_t(&mut self) -> Trivia {
+        self.take()
+    }
+}
+
+impl AnyTrivia for TriviaN {
+    fn take_t(&mut self) -> Trivia {
+        self.take().into()
+    }
+}
+
+pub fn s1(x: &mut impl AnyTrivia) {
+    let t = x.take_t();
+    x.set(shrink_single_space(t));
+}
+
+pub fn s0(x: &mut Trivia) {
+    *x = shrink_no_space(x.take());
+}
+
+pub(crate) trait Respace {
+    fn respace(&mut self, v: &mut Spaces);
+}
+
+impl Respace for Literal {
+    fn respace(&mut self, _: &mut Spaces) {}
+}
+
+impl Respace for Ident {
+    fn respace(&mut self, _: &mut Spaces) {}
+}
+
+impl Respace for Option<(Visibility, Trivia)> {
+    fn respace(&mut self, _: &mut Spaces) {
+        self.as_mut().map(fixup_visibility_pair);
+    }
+}
+
+impl<T: Respace> Respace for Brackets<T> {
+    fn respace(&mut self, v: &mut Spaces) {
+        self.0.respace(v)
+    }
+}
+
+impl<T: Respace> Respace for Box<T> {
+    fn respace(&mut self, v: &mut Spaces) {
+        T::respace(self, v)
+    }
 }
 
 impl Pass for Spaces {
     fn visit_const(&mut self, c: &mut Const) {
-        c.vis.as_mut().map(fixup_visibility_pair);
+        c.respace(self);
     }
     fn visit_fn(&mut self, f: &mut Fn) {
         f.vis.as_mut().map(fixup_visibility_pair);
     }
-
 }

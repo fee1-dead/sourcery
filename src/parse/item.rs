@@ -126,7 +126,7 @@ impl Parser<'_> {
         let t6 = self.eat_punct(Punct::Semi).unwrap();
         Const {
             vis,
-            t1,
+            t1: TriviaN::new(t1),
             kw: Token![const],
             name,
             t2,

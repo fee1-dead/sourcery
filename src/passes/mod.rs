@@ -6,7 +6,7 @@ use crate::parse::{TokenStream, TokenTree};
 mod minify;
 pub use minify::Minify;
 
-mod style;
+pub mod style;
 pub use style::format_with_style_guide;
 
 macro_rules! visit_default_noop {

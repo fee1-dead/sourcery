@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use sourcery_derive::Walk;
+use sourcery_derive::{Respace, Walk};
 
 use crate::ast::tokens::Semi;
 use crate::ast::{Block, Expr, Parens, Pat, TriviaN, Ty};
@@ -105,20 +105,27 @@ pub struct Fn {
     pub block: Block,
 }
 
-#[derive(Debug, Print, Walk)]
+// pub const NAME: Ty = expr;
+#[derive(Debug, Print, Walk, Respace)]
 pub struct Const {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![const],
-    pub t1: Trivia,
+    #[sourcery(spaces = 1)]
+    pub t1: TriviaN,
     pub name: Ident,
+    #[sourcery(spaces = 0)]
     pub t2: Trivia,
     pub colon: Token![:],
+    #[sourcery(spaces = 1)]
     pub t3: Trivia,
     pub ty: Ty,
+    #[sourcery(spaces = 1)]
     pub t4: Trivia,
     pub eq: Token![=],
+    #[sourcery(spaces = 1)]
     pub t5: Trivia,
     pub expr: Expr,
+    #[sourcery(spaces = 0)]
     pub t6: Trivia,
     pub semi: Semi,
 }

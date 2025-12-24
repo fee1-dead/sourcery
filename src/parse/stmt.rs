@@ -4,6 +4,7 @@ use crate::parse::{Parser, Punct};
 
 impl<'src> Parser<'src> {
     pub fn parse_stmt(&mut self) -> (Trivia, Stmt) {
+        
         let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
         let kind = if let Some(trivia) = self.eat_punct(Punct::Semi) {
             attrs.push_trivia(trivia);
