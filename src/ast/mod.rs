@@ -13,7 +13,7 @@ pub use item::*;
 mod ty;
 pub use ty::{Ty, TyArray, TySlice};
 mod stmt;
-pub use stmt::{Block, BlockInner, Stmt, StmtKind};
+pub use stmt::*;
 mod pat;
 pub use pat::Pat;
 mod path;

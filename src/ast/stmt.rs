@@ -1,7 +1,4 @@
-use sourcery_derive::Walk;
-
-use crate::ast::{Attribute, Braces, Expr, List, Token, Trivia, Print};
-use crate::passes::style::spaces::{Respace, Spaces};
+use crate::prelude::*;
 
 #[derive(Debug, Print, Walk)]
 pub struct Stmt {
@@ -15,7 +12,31 @@ pub struct BlockInner {
     pub stmts: List<Stmt>,
 }
 
+// label with trailing trivia
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Label {
+    pub lt: Ident,
+    #[sourcery(spaces = 0)]
+    pub t1: Trivia,
+    pub colon: Token![:],
+    #[sourcery(spaces = 1)]
+    pub t2: Trivia,
+}
+
 pub type Block = Braces<BlockInner>;
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct LabeledBlock {
+    pub label: Option<Label>,
+    pub block: Block,
+}
+
+impl Visit for LabeledBlock {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        self.label.visit(p);
+        self.block.visit(p);
+    }
+}
 
 #[derive(Debug, Print, Walk)]
 pub enum StmtKind {

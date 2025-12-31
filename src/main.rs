@@ -1,14 +1,10 @@
-use sourcery::passes::{Minify, Pass};
-use sourcery::{Print, parse};
+use sourcery::{Print, parse_to_tokenstream};
 
 fn main() {
-    let src = " /* w */ mod foo {
-        mod barrr ; // a
-    }";
-    let mut f = parse(src);
+    let src = " 'a";
+    let f = parse_to_tokenstream(src);
+    println!("{f:?}");
     let mut s = String::new();
-    Minify.visit_file(&mut f);
-
     f.print(&mut s);
     println!("{s}");
 }

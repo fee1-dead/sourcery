@@ -36,12 +36,18 @@ impl<'src> super::Parser<'src> {
                 block,
             })
         } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
-            self.parse_block().map(ExprKind::Block)
+            self.parse_block().map(|block| LabeledBlock { label: None, block }).map(ExprKind::Block)
         } else if let Some(t) = self.eat_kw("if") {
             t << ExprKind::If(self.parse_expr_if())
+        } else if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
+            self.parse_labeled_atom_expr()
         } else {
             panic!("not an expr anymore: {:?}", self.token)
         }
+    }
+
+    fn parse_labeled_atom_expr(&mut self) -> L<ExprKind> {
+        todo!() 
     }
 
     fn parse_expr_if(&mut self) -> IfExpr {

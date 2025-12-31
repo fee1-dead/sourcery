@@ -14,7 +14,7 @@ Parsing & AST:
         - [x] Basic
         - [ ] All keywords
     - [ ] Use trees
-    - [ ] statics and consts
+    - [x] statics and consts
     - [x] Modules
         - [ ] Unsafe modules
     - [ ] Extern modules
@@ -79,7 +79,7 @@ Parsing & AST:
     - [ ] Unops
     - [ ] Literals
     - [ ] Casts
-    - [ ] Ifs
+    - [x] Ifs
     - [ ] Whiles
     - [ ] Lets (in ifs and whiles)
     - [ ] For loops

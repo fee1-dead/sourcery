@@ -1,13 +1,14 @@
 use sourcery_derive::{Respace, Walk};
 
 use crate::Print;
+use crate::ast::stmt::LabeledBlock;
 use crate::ast::{Block, Trivia, Token};
 use super::{Attribute, List, Literal};
 
 #[derive(Debug, Print, Walk, Respace)]
 pub enum ExprKind {
     Literal(Literal),
-    Block(Block),
+    Block(LabeledBlock),
     AsyncBlock(AsyncBlock),
     TryBlock(TryBlock),
     If(IfExpr),

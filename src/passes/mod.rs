@@ -78,6 +78,7 @@ pub trait Pass {
         visit_if(IfExpr);
         visit_else(Else);
         visit_else_kind(ElseKind);
+        visit_label(Label);
         visit_block(BlockInner);
         visit_stmt(Stmt);
         visit_stmt_kind(StmtKind);
