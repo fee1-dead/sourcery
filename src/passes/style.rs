@@ -1,5 +1,4 @@
-use crate::ast::{File, Trivia};
-use crate::passes::Pass;
+use crate::prelude::*;
 
 pub mod spaces;
 

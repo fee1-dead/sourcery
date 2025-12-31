@@ -3,9 +3,8 @@ use std::fmt::Debug;
 mod attr;
 pub use attr::{Attribute, AttributeInner, AttributeStyle, AttributeValue};
 mod expr;
-pub use expr::{Expr, ExprKind};
+pub use expr::*;
 mod token;
-use sourcery_derive::{Respace, Walk};
 pub use token::grouping::{Braces, Brackets, Delimited, Delimiter, Parens};
 pub use token::{Ident, Literal, Trivia, TriviaN, Trivium};
 pub use token::{Token, kw, tokens};
@@ -17,9 +16,10 @@ mod stmt;
 pub use stmt::{Block, BlockInner, Stmt, StmtKind};
 mod pat;
 pub use pat::Pat;
+mod path;
+pub use path::*;
 
-use crate::Print;
-use crate::passes::style::spaces::{Respace, s0};
+use crate::prelude::*;
 
 /// A list of items separated by trivia. Does not contain leading trivia
 /// but may contain trailing trivia.
@@ -112,33 +112,6 @@ impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
     }
 }
 
-#[derive(Debug, Print, Walk, Respace)]
-pub struct PathSegment {
-    pub ident: Ident,
-}
-
-#[derive(Debug, Print)]
-pub struct Path {
-    pub leading_colon: Option<(Token![::], Trivia)>,
-    pub seg1: PathSegment,
-    // Not `List` because this one is self-contained (no trailing trivia)
-    pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
-}
-
-impl Respace for Path {
-    fn respace(&mut self, v: &mut crate::passes::style::spaces::Spaces) {
-        let Path { leading_colon, seg1, rest } = self;
-        if let Some((_, t)) = leading_colon {
-            s0(t);
-        }
-        seg1.respace(v);
-        for (t, _, tt, s) in rest {
-            s0(t);
-            s0(tt);
-            s.respace(v);
-        }
-    }
-}
 
 #[derive(Debug, Print, Walk)]
 pub struct VisRestricted {

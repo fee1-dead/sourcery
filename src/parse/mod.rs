@@ -19,6 +19,7 @@ mod item;
 mod stmt;
 mod ty;
 mod pat;
+mod path;
 
 #[derive(Default, Clone, Debug, Print, Walk)]
 pub struct TokenStream {
@@ -93,6 +94,12 @@ impl TokenTree {
     pub fn is_delim(&self, delim: Delimiter) -> bool {
         match self {
             TokenTree::Group(delimited) => delimited.delimiter() == delim,
+            _ => false,
+        }
+    }
+    pub fn is_ident(&self, i: &str) -> bool {
+        match self {
+            TokenTree::Ident(i2) => i == i2.0,
             _ => false,
         }
     }
@@ -176,12 +183,18 @@ impl<'src> Parser<'src> {
     pub fn peek(&self, f: impl FnOnce(&TokenTree) -> bool) -> bool {
         f(&self.token.1)
     }
+    pub fn peek2(&self, f: impl FnOnce(&TokenTree) -> bool) -> bool {
+        self.peek_nth(1, move |(_, t)| f(t))
+    }
+    pub fn peek3(&self, f: impl FnOnce(&TokenTree) -> bool) -> bool {
+        self.peek_nth(2, move |(_, t)| f(t))
+    }
     #[must_use]
     pub fn check_ident(&self, s: &str) -> bool {
         matches!(&self.token.1, TokenTree::Ident(Ident(id)) if s == id)
     }
     #[must_use]
-    pub fn check_punct(&mut self, punct: Punct) -> bool {
+    pub fn check_punct(&self, punct: Punct) -> bool {
         matches!(self.token.1, TokenTree::Punct(got) if got == punct)
     }
     pub fn eat_punct(&mut self, punct: Punct) -> Option<Trivia> {
@@ -231,7 +244,7 @@ impl<'src> Parser<'src> {
     pub fn eat(&mut self, f: impl FnOnce(&TokenTree) -> bool) -> Option<(Trivia, TokenTree)> {
         self.peek(f).then(|| self.bump())
     }
-    fn peek_nth<R>(&mut self, n: usize, x: impl FnOnce(&(Trivia, TokenTree)) -> R) -> R {
+    fn peek_nth<R>(&self, n: usize, x: impl FnOnce(&(Trivia, TokenTree)) -> R) -> R {
         let mut parser = self.snapshot();
         for _ in 0..n {
             parser.bump();

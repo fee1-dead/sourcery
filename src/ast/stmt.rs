@@ -1,6 +1,7 @@
 use sourcery_derive::Walk;
 
 use crate::ast::{Attribute, Braces, Expr, List, Token, Trivia, Print};
+use crate::passes::style::spaces::{Respace, Spaces};
 
 #[derive(Debug, Print, Walk)]
 pub struct Stmt {
@@ -21,4 +22,10 @@ pub enum StmtKind {
     Empty(Token![;]),
     Semi(Expr, Trivia, Token![;]),
     Expr(Expr),
+}
+
+impl Respace for Block {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
 }

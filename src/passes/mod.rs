@@ -1,5 +1,5 @@
 use crate::ast::{
-    Attribute, AttributeInner, AttributeStyle, AttributeValue, BlockInner, Braces, Brackets, Const, Delimited, Expr, ExprKind, File, Fn, FnParam, FnRet, Ident, Item, ItemKind, List, Literal, Mod, Module, Parens, Pat, Path, PathSegment, Stmt, StmtKind, Trivia, TriviaN, Ty, TyAlias, TyArray, TySlice, VisRestricted, Visibility
+    AsyncBlock, Attribute, AttributeInner, AttributeStyle, AttributeValue, BlockInner, Braces, Brackets, Const, Delimited, Expr, ExprKind, File, Fn, FnParam, FnRet, Ident, Item, ItemKind, List, Literal, Mod, Module, Parens, Pat, Path, PathSegment, Stmt, StmtKind, Trivia, TriviaN, TryBlock, Ty, TyAlias, TyArray, TySlice, VisRestricted, Visibility
 };
 use crate::parse::{TokenStream, TokenTree};
 
@@ -72,6 +72,8 @@ pub trait Pass {
         visit_fn(Fn);
         visit_fn_param(FnParam);
         visit_fn_ret(FnRet);
+        visit_async_block(AsyncBlock);
+        visit_try_block(TryBlock);
         visit_block(BlockInner);
         visit_stmt(Stmt);
         visit_stmt_kind(StmtKind);
