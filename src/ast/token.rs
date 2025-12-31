@@ -291,11 +291,17 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    keywords(Mod(mod), Pub(pub), In(in), Type(type), Fn(fn), Const(const), Static(static), Unsafe(unsafe), Async(async), Try(try), As(as), If(if), Else(else));
+    keywords(
+        Mod(mod), Pub(pub), In(in), Type(type), Fn(fn), Const(const), Static(static), Unsafe(unsafe), Async(async),
+        Try(try), As(as), If(if), Else(else), While(while), Loop(loop), For(for), Match(match),
+    );
     tokens(
         Semi(;),
         Comma(,),
         Dot(.),
+        DotDot(..),
+        DotDotDot(...),
+        DotDotEq(..=),
         At(@),
         Pound(#),
         Tilde(~),
@@ -303,19 +309,19 @@ define_tokens! {
         Colon(:),
         ColonColon(::),
         Dollar($),
-        Eq(=),
-        Bang(!),
-        Lt(<),
-        Gt(>),
-        Minus(-),
-        And(&),
-        Or(|),
-        Plus(+),
-        Star(*),
-        Slash(/),
-        Caret(^),
-        Percent(%),
-        RArrow(->),
+        Eq(=), EqEq(==),
+        Bang(!), BangEq(!=),
+        Lt(<), LtEq(<=), LtLtEq(<<=),
+        Gt(>), GtEq(>=), GtGtEq(>>=),
+        Minus(-), MinusEq(-=),
+        And(&), AndEq(&=),
+        Or(|), OrEq(|=),
+        Plus(+), PlusEq(+=),
+        Star(*), StarEq(*=),
+        Slash(/), SlashEq(/=),
+        Caret(^), CaretEq(^=),
+        Percent(%), PercentEq(%=),
+        RThinArrow(->), RFatArrow(=>), LThinArrow(<-),
     );
 }
 

@@ -1,8 +1,8 @@
-use sourcery_derive::Walk;
+use sourcery_derive::{Respace, Walk};
 
 use crate::ast::{Ident, Print};
 
-#[derive(Debug, Print, Walk)]
+#[derive(Debug, Print, Walk, Respace)]
 pub enum Pat {
     Ident(Ident),
 }

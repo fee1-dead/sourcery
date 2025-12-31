@@ -98,6 +98,7 @@ impl TokenTree {
             _ => false,
         }
     }
+
     pub fn is_ident(&self, i: &str) -> bool {
         match self {
             TokenTree::Ident(i2) => i == i2.0,
@@ -105,9 +106,23 @@ impl TokenTree {
         }
     }
 
+    pub fn is_punct(&self, punct: Punct) -> bool {
+        match self {
+            TokenTree::Punct(p2) => punct == *p2,
+            _ => false,
+        }
+    }
+
     pub fn into_literal(self) -> Option<Literal> {
         match self {
             TokenTree::Literal(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    pub fn into_lifetime(self) -> Option<Ident> {
+        match self {
+            TokenTree::Lifetime(l) => Some(l),
             _ => None,
         }
     }
@@ -125,6 +140,9 @@ pub enum Punct {
     Semi,
     Comma,
     Dot,
+    DotDot,
+    DotDotEq,
+    DotDotDot,
     At,
     Pound,
     Tilde,
@@ -133,18 +151,34 @@ pub enum Punct {
     ColonColon,
     Dollar,
     Eq,
+    EqEq,
     Bang,
+    BangEq,
     Lt,
+    LtEq,
+    LtLtEq,
     Gt,
+    GtEq,
+    GtGtEq,
     Minus,
+    MinusEq,
     And,
+    AndEq,
     Or,
+    OrEq,
     Plus,
+    PlusEq,
     Star,
+    StarEq,
     Slash,
+    SlashEq,
     Caret,
+    CaretEq,
     Percent,
-    RArrow,
+    PercentEq,
+    RThinArrow,
+    RFatArrow,
+    LThinArrow,
 }
 
 impl Visit for Punct {
@@ -163,8 +197,11 @@ macro_rules! impl_print_for_punct {
     };
 }
 impl_print_for_punct!(
-    Semi, Comma, Dot, At, Pound, Tilde, Question, Colon, ColonColon, Dollar, Eq, Bang, Lt, Gt,
-    Minus, And, Or, Plus, Star, Slash, Caret, Percent, RArrow,
+    Semi, Comma, Dot, DotDot, DotDotEq, DotDotDot, At, Pound, Tilde,
+    Question, Colon, ColonColon, Dollar, Eq, EqEq, Bang, BangEq, Lt,
+    LtEq, LtLtEq, Gt, GtEq, GtGtEq, Minus, MinusEq, And, AndEq, Or,
+    OrEq, Plus, PlusEq, Star, StarEq, Slash, SlashEq, Caret, CaretEq,
+    Percent, PercentEq, RThinArrow, RFatArrow, LThinArrow
 );
 
 #[derive(Clone, Debug)]

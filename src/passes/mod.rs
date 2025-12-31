@@ -75,11 +75,16 @@ pub trait Pass {
         visit_fn_ret(FnRet);
         visit_async_block(AsyncBlock);
         visit_try_block(TryBlock);
+        visit_const_block(ConstBlock);
+        visit_unsafe_block(UnsafeBlock);
         visit_if(IfExpr);
         visit_else(Else);
         visit_else_kind(ElseKind);
         visit_label(Label);
         visit_block(BlockInner);
+        visit_while(While);
+        visit_for(For);
+        visit_loop(Loop);
         visit_stmt(Stmt);
         visit_stmt_kind(StmtKind);
         visit_ty_alias(TyAlias);

@@ -1,9 +1,4 @@
-use sourcery_derive::{Respace, Walk};
-
-use crate::Print;
-use crate::ast::stmt::LabeledBlock;
-use crate::ast::{Block, Trivia, Token};
-use super::{Attribute, List, Literal};
+use crate::prelude::*;
 
 #[derive(Debug, Print, Walk, Respace)]
 pub enum ExprKind {
@@ -11,7 +6,12 @@ pub enum ExprKind {
     Block(LabeledBlock),
     AsyncBlock(AsyncBlock),
     TryBlock(TryBlock),
+    Unsafe(UnsafeBlock),
+    Const(ConstBlock),
     If(IfExpr),
+    While(While),
+    For(For),
+    Loop(Loop),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -33,6 +33,22 @@ pub struct TryBlock {
 }
 
 #[derive(Debug, Print, Walk, Respace)]
+pub struct UnsafeBlock {
+    pub token: Token![unsafe],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub block: Block,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct ConstBlock {
+    pub token: Token![const],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub block: Block,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
 pub struct IfExpr {
     pub token: Token![if],
     #[sourcery(spaces = 1)]
@@ -42,6 +58,45 @@ pub struct IfExpr {
     pub t2: Trivia,
     pub then: Block,
     pub else_: Option<Else>,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct While {
+    pub label: Option<Label>,
+    pub token: Token![while],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub cond: Box<Expr>,
+    #[sourcery(spaces = 1)]
+    pub t2: Trivia,
+    pub then: Block,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct For {
+    pub label: Option<Label>,
+    pub token: Token![for],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub pat: Pat,
+    #[sourcery(spaces = 1)]
+    pub t2: Trivia,
+    pub in_: Token![in],
+    #[sourcery(spaces = 1)]
+    pub t3: Trivia,
+    pub expr: Box<Expr>,
+    #[sourcery(spaces = 1)]
+    pub t4: Trivia,
+    pub block: Block,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Loop {
+    pub label: Option<Label>,
+    pub token: Token![loop],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub block: Block,
 }
 
 #[derive(Debug, Print, Walk, Respace)]

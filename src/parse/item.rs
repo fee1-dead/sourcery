@@ -27,7 +27,7 @@ impl Parser<'_> {
             let mut tfirst = None;
             loop {
                 let (tattr, mut attrs) = this.parse_attrs(AttrKind::Outer).unwrap_or_default();
-                let (tbeforepat, pat) = this.parse_pat();
+                let L(tbeforepat, pat) = this.parse_pat();
                 attrs.push_trivia(tbeforepat);
                 let t1 = this.eat_punct(Punct::Colon).unwrap();
                 let L(t2, ty) = this.parse_ty();

@@ -72,7 +72,8 @@ Parsing & AST:
     - [ ] Generic params
 - [ ] [Expressions](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.ExprKind.html)
     - [ ] Arrays and array repeats
-    - [ ] Blocks: normal, unsafe, const, async, gen, try
+    - [x] Blocks: normal, unsafe, const, async, try
+    - [ ] Gen block
     - [ ] Calls
     - [ ] Tuples
     - [ ] Binops
@@ -82,11 +83,11 @@ Parsing & AST:
     - [x] Ifs
     - [ ] Whiles
     - [ ] Lets (in ifs and whiles)
-    - [ ] For loops
-    - [ ] Loops
+    - [x] For loops
+    - [x] Loops
     - [ ] Matches
     - [ ] Closures
-    - [ ] Blocks
+    - [x] Blocks
     - [ ] Use expression
     - [ ] AssignOp
     - [ ] Fields

@@ -71,7 +71,6 @@ impl<'src> Gluer<'src> {
                 starts_with_number: _,
             } => TokenTree::Lifetime(Ident(s)),
             TokenKind::RawLifetime => TokenTree::RawLifetime(Ident(s)),
-
             TokenKind::Literal {
                 kind: _,
                 suffix_start,
@@ -81,8 +80,8 @@ impl<'src> Gluer<'src> {
                 let suffix = SmolStr::new(&s[suffix_start..]);
                 TokenTree::Literal(Literal { symbol, suffix })
             }
-
             TokenKind::Pound => TokenTree::Punct(Punct::Pound),
+            TokenKind::Bang if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => TokenTree::Punct(Punct::BangEq),
             TokenKind::Bang => TokenTree::Punct(Punct::Bang),
             TokenKind::Semi => TokenTree::Punct(Punct::Semi),
             TokenKind::Colon if matches!(self.peek(), (t, TokenKind::Colon, _) if t.is_empty()) => {
@@ -90,19 +89,62 @@ impl<'src> Gluer<'src> {
                 TokenTree::Punct(Punct::ColonColon)
             }
             TokenKind::Colon => TokenTree::Punct(Punct::Colon),
+            TokenKind::Eq if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::EqEq)
+            }
+            TokenKind::Eq if matches!(self.peek(), (t, TokenKind::Gt, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::RFatArrow)
+            }
             TokenKind::Eq => TokenTree::Punct(Punct::Eq),
             TokenKind::Tilde => TokenTree::Punct(Punct::Tilde),
             TokenKind::Dollar => TokenTree::Punct(Punct::Dollar),
+            TokenKind::Percent if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::PercentEq)
+            }
             TokenKind::Percent => TokenTree::Punct(Punct::Percent),
+            TokenKind::Caret if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::CaretEq)
+            }
             TokenKind::Caret => TokenTree::Punct(Punct::Caret),
+            TokenKind::And if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::AndEq)
+            }
             TokenKind::And => TokenTree::Punct(Punct::And),
+            TokenKind::Or if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::OrEq)
+            }
+            TokenKind::Or => TokenTree::Punct(Punct::Or),
+            TokenKind::Star if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::StarEq)
+            }
             TokenKind::Star => TokenTree::Punct(Punct::Star),
             TokenKind::Eof => TokenTree::Eof,
+            TokenKind::Plus if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::PlusEq)
+            }
+            TokenKind::Plus => TokenTree::Punct(Punct::Plus),
+            TokenKind::Minus if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::MinusEq)
+            }
             TokenKind::Minus if matches!(self.peek(), (t, TokenKind::Gt, _) if t.is_empty()) => {
                 self.lexer.next();
-                TokenTree::Punct(Punct::RArrow)
+                TokenTree::Punct(Punct::RThinArrow)
             }
-
+            TokenKind::Minus => TokenTree::Punct(Punct::Minus),
+            TokenKind::Slash if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::SlashEq)
+            }
+            TokenKind::Slash => TokenTree::Punct(Punct::Slash),
             TokenKind::CloseBrace | TokenKind::CloseBracket | TokenKind::CloseParen => {
                 panic!("unclosed group");
             }
@@ -119,8 +161,47 @@ impl<'src> Gluer<'src> {
             | TokenKind::Frontmatter { .. } => {
                 panic!("invalid tokens or weird tokens are unsupported")
             }
-
-            tk => todo!("{tk:?}"),
+            TokenKind::Dot if matches!(self.peek(), (t, TokenKind::Dot, _) if t.is_empty()) && matches!(self.peek_nth(1), (t, TokenKind::Dot, _) if t.is_empty()) => {
+                self.lexer.next();
+                self.lexer.next();
+                TokenTree::Punct(Punct::DotDotDot)
+            }
+            TokenKind::Dot if matches!(self.peek(), (t, TokenKind::Dot, _) if t.is_empty()) && matches!(self.peek_nth(1), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                self.lexer.next();
+                TokenTree::Punct(Punct::DotDotEq)
+            }
+            TokenKind::Dot if matches!(self.peek(), (t, TokenKind::Dot, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::DotDot)
+            }
+            TokenKind::Dot => TokenTree::Punct(Punct::Dot),
+            TokenKind::Gt if matches!(self.peek(), (t, TokenKind::Gt, _) if t.is_empty()) && matches!(self.peek_nth(1), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                self.lexer.next();
+                TokenTree::Punct(Punct::GtGtEq)
+            }
+            TokenKind::Lt if matches!(self.peek(), (t, TokenKind::Lt, _) if t.is_empty()) && matches!(self.peek_nth(1), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                self.lexer.next();
+                TokenTree::Punct(Punct::LtLtEq)
+            }
+            TokenKind::Lt if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::LtEq)
+            }
+            TokenKind::Lt if matches!(self.peek(), (t, TokenKind::Minus, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::LThinArrow)
+            }
+            TokenKind::Gt if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::GtEq)
+            }
+            TokenKind::Lt => TokenTree::Punct(Punct::Lt),
+            TokenKind::Gt => TokenTree::Punct(Punct::Gt),
+            TokenKind::Comma => TokenTree::Punct(Punct::Comma),
+            TokenKind::Question => TokenTree::Punct(Punct::Question),
         };
 
         t0 << tt
