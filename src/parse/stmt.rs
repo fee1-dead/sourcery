@@ -1,6 +1,5 @@
-use crate::ast::{Block, BlockInner, Braces, Delimiter, List, Stmt, StmtKind, Token, Trivia};
+use crate::prelude::*;
 use crate::parse::attr::AttrKind;
-use crate::parse::{Parser, Punct};
 
 impl<'src> Parser<'src> {
     pub fn parse_stmt(&mut self) -> (Trivia, Stmt) {
@@ -9,7 +8,7 @@ impl<'src> Parser<'src> {
             attrs.push_trivia(trivia);
             StmtKind::Empty(Token![;])
         } else {
-            let (t1, expr) = self.parse_expr();
+            let L(t1, expr) = self.parse_expr();
             attrs.push_trivia(t1);
             if let Some(t2) = self.eat_punct(Punct::Semi) {
                 StmtKind::Semi(expr, t2, Token![;])
@@ -21,7 +20,7 @@ impl<'src> Parser<'src> {
         (t0, Stmt { attrs, kind })
     }
 
-    pub fn parse_block(&mut self) -> (Trivia, Block) {
+    pub fn parse_block(&mut self) -> L<Block> {
         self.eat_delim(Delimiter::Braces, |t0, mut this | {
             let mut stmts = List::default();
             let mut tstart = None;
@@ -41,7 +40,7 @@ impl<'src> Parser<'src> {
             let tstart = tstart.unwrap_or_default();
             stmts.push_trivia(tend);
             let b = BlockInner { t0: tstart, stmts };
-            (t0, Braces(b))
+            t0 << Braces(b)
         }).unwrap()
     }
 }

@@ -1,8 +1,9 @@
+use std::ops::Shl;
 use std::{mem, vec};
 
 use sourcery_derive::Walk;
 
-use crate::ast::{Delimited, Delimiter, Parens, TriviaN};
+use crate::ast::{Delimited, Delimiter, Parens, QPath, QSelf, TriviaN};
 use crate::ast::{File, List, Module, Path, PathSegment, VisRestricted, Visibility};
 use crate::ast::{Ident, Trivia};
 use crate::ast::{Literal, Token};
@@ -16,10 +17,10 @@ mod expr;
 mod generics;
 mod glue;
 mod item;
-mod stmt;
-mod ty;
 mod pat;
 mod path;
+mod stmt;
+mod ty;
 
 #[derive(Default, Clone, Debug, Print, Walk)]
 pub struct TokenStream {
@@ -46,7 +47,7 @@ pub struct TokenStreamIter {
 }
 
 pub trait TokenIterator {
-    fn next(&mut self) -> (Trivia, TokenTree);
+    fn next(&mut self) -> WithLeadingTrivia<TokenTree>;
     fn snapshot(&self) -> Box<dyn TokenIterator + '_>;
 }
 
@@ -54,16 +55,16 @@ impl TokenIterator for TokenStreamIter {
     fn snapshot(&self) -> Box<dyn TokenIterator + '_> {
         Box::new(self.clone())
     }
-    fn next(&mut self) -> (Trivia, TokenTree) {
+    fn next(&mut self) -> WithLeadingTrivia<TokenTree> {
         match self.inner.next() {
             Some((tt, trivia)) => {
                 let t = mem::replace(&mut self.tprev, trivia);
-                (t, tt)
+                t << tt
             }
             None => {
                 let mut prev = self.tprev.take();
                 prev.extend(self.last.take());
-                (prev, TokenTree::Eof)
+                prev << TokenTree::Eof
             }
         }
     }
@@ -73,7 +74,7 @@ impl TokenIterator for Gluer<'_> {
     fn snapshot(&self) -> Box<dyn TokenIterator + '_> {
         Box::new(self.snapshot())
     }
-    fn next(&mut self) -> (Trivia, TokenTree) {
+    fn next(&mut self) -> WithLeadingTrivia<TokenTree> {
         Gluer::next(self)
     }
 }
@@ -101,6 +102,20 @@ impl TokenTree {
         match self {
             TokenTree::Ident(i2) => i == i2.0,
             _ => false,
+        }
+    }
+
+    pub fn into_literal(self) -> Option<Literal> {
+        match self {
+            TokenTree::Literal(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    pub fn into_group(self) -> Option<Delimited<TokenStream>> {
+        match self {
+            TokenTree::Group(d) => Some(*d),
+            _ => None,
         }
     }
 }
@@ -133,9 +148,7 @@ pub enum Punct {
 }
 
 impl Visit for Punct {
-    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {
-        
-    }
+    fn visit<P: crate::passes::Pass + ?Sized>(&mut self, _: &mut P) {}
 }
 
 macro_rules! impl_print_for_punct {
@@ -154,16 +167,35 @@ impl_print_for_punct!(
     Minus, And, Or, Plus, Star, Slash, Caret, Percent, RArrow,
 );
 
+#[derive(Clone, Debug)]
+pub struct WithLeadingTrivia<T>(pub Trivia, pub T);
+
+impl<T> WithLeadingTrivia<T> {
+    pub fn map<F: FnOnce(T) -> R, R>(self, f: F) -> WithLeadingTrivia<R> {
+        WithLeadingTrivia(self.0, f(self.1))
+    }
+}
+
+pub use WithLeadingTrivia as L;
+
+// I think someone will hate this :3
+impl<T> Shl<T> for Trivia {
+    type Output = WithLeadingTrivia<T>;
+    fn shl(self, rhs: T) -> Self::Output {
+        WithLeadingTrivia(self, rhs)
+    }
+}
+
 pub struct Parser<'src> {
     tokens: Box<dyn TokenIterator + 'src>,
-    token: (Trivia, TokenTree),
+    token: WithLeadingTrivia<TokenTree>,
 }
 
 impl<'src> Parser<'src> {
     fn create(x: impl TokenIterator + 'src) -> Self {
         let mut p = Parser {
             tokens: Box::new(x),
-            token: (Trivia::default(), TokenTree::Eof),
+            token: Trivia::default() << TokenTree::Eof,
         };
         p.bump();
         p
@@ -171,7 +203,7 @@ impl<'src> Parser<'src> {
     pub fn new(s: &'src str) -> Self {
         Parser::create(Gluer::new(lex::tokenize(s)))
     }
-    pub fn bump(&mut self) -> (Trivia, TokenTree) {
+    pub fn bump(&mut self) -> WithLeadingTrivia<TokenTree> {
         mem::replace(&mut self.token, self.tokens.next())
     }
     pub fn snapshot(&'src self) -> Self {
@@ -184,10 +216,10 @@ impl<'src> Parser<'src> {
         f(&self.token.1)
     }
     pub fn peek2(&self, f: impl FnOnce(&TokenTree) -> bool) -> bool {
-        self.peek_nth(1, move |(_, t)| f(t))
+        self.peek_nth(1, move |L(_, t)| f(t))
     }
     pub fn peek3(&self, f: impl FnOnce(&TokenTree) -> bool) -> bool {
-        self.peek_nth(2, move |(_, t)| f(t))
+        self.peek_nth(2, move |L(_, t)| f(t))
     }
     #[must_use]
     pub fn check_ident(&self, s: &str) -> bool {
@@ -200,24 +232,16 @@ impl<'src> Parser<'src> {
     pub fn eat_punct(&mut self, punct: Punct) -> Option<Trivia> {
         self.check_punct(punct).then(|| self.bump().0)
     }
-    pub fn eat_delimited(&mut self) -> Option<(Trivia, Delimited<TokenStream>)> {
+    pub fn eat_delimited(&mut self) -> Option<WithLeadingTrivia<Delimited<TokenStream>>> {
         self.eat(|tt| matches!(tt, TokenTree::Group(_)))
-            .map(|(t, tt)| {
-                (
-                    t,
-                    match tt {
-                        TokenTree::Group(delim) => *delim,
-                        _ => unreachable!(),
-                    },
-                )
-            })
+            .map(|tt| tt.map(|tt| tt.into_group().unwrap()))
     }
     pub fn eat_delim<T>(
         &mut self,
         delim: Delimiter,
         f: impl FnOnce(Trivia, Parser<'src>) -> T,
     ) -> Option<T> {
-        if let Some((t, TokenTree::Group(tokens))) =
+        if let Some(L(t, TokenTree::Group(tokens))) =
             self.eat(|t| matches!(t, TokenTree::Group(tokens) if tokens.delimiter() == delim))
         {
             let p = Parser::create(tokens.into_inner().into_iter());
@@ -227,24 +251,19 @@ impl<'src> Parser<'src> {
         }
     }
     pub fn eat_eof(&mut self) -> Option<Trivia> {
-        self.eat(|tt| matches!(tt, TokenTree::Eof)).map(|(t, _)| t)
+        self.eat(|tt| matches!(tt, TokenTree::Eof)).map(|L(t, _)| t)
     }
-    pub fn eat_literal(&mut self) -> Option<(Trivia, Literal)> {
+    pub fn eat_literal(&mut self) -> Option<WithLeadingTrivia<Literal>> {
         self.eat(|tt| matches!(tt, TokenTree::Literal(_)))
-            .map(|(t, tt)| {
-                (
-                    t,
-                    match tt {
-                        TokenTree::Literal(l) => l,
-                        _ => unreachable!(),
-                    },
-                )
-            })
+            .map(|tt| tt.map(|tt| tt.into_literal().unwrap()))
     }
-    pub fn eat(&mut self, f: impl FnOnce(&TokenTree) -> bool) -> Option<(Trivia, TokenTree)> {
+    pub fn eat(
+        &mut self,
+        f: impl FnOnce(&TokenTree) -> bool,
+    ) -> Option<WithLeadingTrivia<TokenTree>> {
         self.peek(f).then(|| self.bump())
     }
-    fn peek_nth<R>(&self, n: usize, x: impl FnOnce(&(Trivia, TokenTree)) -> R) -> R {
+    fn peek_nth<R>(&self, n: usize, x: impl FnOnce(&L<TokenTree>) -> R) -> R {
         let mut parser = self.snapshot();
         for _ in 0..n {
             parser.bump();
@@ -252,63 +271,95 @@ impl<'src> Parser<'src> {
         x(&parser.token)
     }
 
-    pub fn eat_ident(&mut self, s: &str) -> Option<(Trivia, Ident)> {
+    pub fn eat_kw(&mut self, s: &str) -> Option<Trivia> {
+        self.eat_ident(s).map(|L(t, _)| t)
+    }
+
+    pub fn eat_ident(&mut self, s: &str) -> Option<L<Ident>> {
         self.check_ident(s).then(|| {
-            let (t, tt) = self.bump();
+            let L(t, tt) = self.bump();
             let TokenTree::Ident(id) = tt else {
                 unreachable!()
             };
-            (t, id)
+            t << id
         })
     }
 
-    pub fn parse_ident(&mut self) -> (Trivia, Ident) {
-        let (t, tok) = self.bump();
+    pub fn parse_ident(&mut self) -> L<Ident> {
+        let L(t, tok) = self.bump();
         let TokenTree::Ident(id) = tok else {
             panic!("expected ident")
         };
-        (t, id)
+        t << id
     }
 
-    pub fn parse_path_segment(&mut self) -> (Trivia, PathSegment) {
-        let (t0, ident) = self.parse_ident();
-        (t0, PathSegment { ident })
+    pub fn parse_path_segment(&mut self) -> L<PathSegment> {
+        let L(t0, ident) = self.parse_ident();
+        t0 << PathSegment { ident }
     }
-    pub fn parse_path(&mut self) -> (Trivia, Path) {
+    pub fn parse_path(&mut self) -> L<Path> {
         let (t0, leading_colon, seg1) = if let Some(t0) = self.eat_punct(Punct::ColonColon) {
-            let (t1, seg1) = self.parse_path_segment();
+            let L(t1, seg1) = self.parse_path_segment();
             (t0, Some((Token![::], t1)), seg1)
         } else {
-            let (t0, seg1) = self.parse_path_segment();
+            let L(t0, seg1) = self.parse_path_segment();
             (t0, None, seg1)
         };
 
         let mut rest = vec![];
 
         while let Some(t1) = self.eat_punct(Punct::ColonColon) {
-            let (t2, seg) = self.parse_path_segment();
+            let L(t2, seg) = self.parse_path_segment();
             rest.push((t1, Token![::], t2, seg));
         }
 
-        (
-            t0,
-            Path {
-                leading_colon,
-                seg1,
-                rest,
-            },
-        )
+        t0 << Path {
+            leading_colon,
+            seg1,
+            rest,
+        }
     }
 
-    pub fn parse_vis(&mut self) -> Option<(Trivia, Visibility)> {
-        let (t0, _) = self.eat_ident("pub")?;
+    pub fn parse_qpath(&mut self) -> L<QPath> {
+        if let Some(t0) = self.eat_punct(Punct::Lt) {
+            let L(t1, selfty) = self.parse_ty();
+            let as_ = if let Some(L(t2, _)) = self.eat_ident("as") {
+                let L(t3, p) = self.parse_path();
+                Some((t2, Token![as], t3, p))
+            } else {
+                None
+            };
+            let tlast = self.eat_punct(Punct::Gt).unwrap();
+            let L(tprev, path) = self.parse_path();
+
+            t0 << QPath {
+                qself: Some((
+                    (QSelf {
+                        left: Token![<],
+                        t1,
+                        ty: Box::new(selfty),
+                        as_,
+                        tlast,
+                        right: Token![>],
+                    }),
+                    tprev,
+                )),
+                path,
+            }
+        } else {
+            self.parse_path().map(|path| QPath { qself: None, path })
+        }
+    }
+
+    pub fn parse_vis(&mut self) -> Option<L<Visibility>> {
+        let L(t0, _) = self.eat_ident("pub")?;
         let vis = self
             .eat_delim(Delimiter::Parens, |t1, mut this| {
-                let (t2, in_, path) = if let Some((t2, _)) = this.eat_ident("in") {
-                    let (t2_5, path) = this.parse_path();
+                let (t2, in_, path) = if let Some(L(t2, _)) = this.eat_ident("in") {
+                    let L(t2_5, path) = this.parse_path();
                     (t2, Some((Token![in], TriviaN::new(t2_5))), path)
                 } else {
-                    let (t2, ident) = this.parse_ident();
+                    let L(t2, ident) = this.parse_ident();
                     (
                         t2,
                         None,
@@ -329,7 +380,7 @@ impl<'src> Parser<'src> {
             })
             .unwrap_or(Visibility::Public { pub_: Token![pub] });
 
-        Some((t0, vis))
+        Some(t0 << vis)
     }
     pub fn parse_module(&mut self) -> Module {
         let (t1, attrs) = self.parse_attrs(AttrKind::Inner).unwrap_or_default();

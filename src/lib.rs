@@ -11,6 +11,7 @@ pub(crate) mod prelude {
     pub use crate::print::Print;
     pub use crate::ast::*;
     pub use crate::passes::*;
+    pub use crate::parse::*;
     pub use sourcery_derive::*;
     pub use crate::passes::style::spaces::*;
 }

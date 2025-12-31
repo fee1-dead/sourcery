@@ -10,6 +10,7 @@ pub enum ExprKind {
     Block(Block),
     AsyncBlock(AsyncBlock),
     TryBlock(TryBlock),
+    If(IfExpr),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -28,6 +29,34 @@ pub struct TryBlock {
     pub t1: Trivia,
     // TODO `move`
     pub block: Block,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct IfExpr {
+    pub token: Token![if],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub cond: Box<Expr>,
+    #[sourcery(spaces = 1)]
+    pub t2: Trivia,
+    pub then: Block,
+    pub else_: Option<Else>,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Else {
+    #[sourcery(spaces = 1)]
+    pub t3: Trivia,
+    pub token: Token![else],
+    #[sourcery(spaces = 1)]
+    pub t4: Trivia,
+    pub kind: ElseKind,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub enum ElseKind {
+    Else(Block),
+    If(Box<IfExpr>),
 }
 
 

@@ -4,8 +4,7 @@ use ra_ap_rustc_lexer::TokenKind;
 use smol_str::SmolStr;
 
 use crate::Lexer;
-use crate::ast::{Braces, Brackets, Delimited, Ident, List, Literal, Parens, Trivia};
-use crate::parse::{Punct, TokenStream, TokenTree};
+use crate::prelude::*;
 
 pub struct Gluer<'src> {
     lexer: Lexer<'src>,
@@ -41,18 +40,18 @@ impl<'src> Gluer<'src> {
             stream.tokens.push_trivia(triv);
             return stream;
         }
-        let (t1, tt) = self.next();
+        let L(t1, tt) = self.next();
         stream.t1 = t1;
         stream.tokens = List::single(tt);
         while self.peek().1 != kind {
-            let (t, tt) = self.next();
+            let L(t, tt) = self.next();
             stream.tokens.push(t, tt);
         }
         let triv = self.lexer.next().0;
         stream.tokens.push_trivia(triv);
         stream
     }
-    pub fn next(&mut self) -> (Trivia, TokenTree) {
+    pub fn next(&mut self) -> WithLeadingTrivia<TokenTree> {
         let (t0, tok, s) = self.lexer.next();
         let tt = match tok {
             TokenKind::OpenBrace | TokenKind::OpenParen | TokenKind::OpenBracket => {
@@ -124,6 +123,6 @@ impl<'src> Gluer<'src> {
             tk => todo!("{tk:?}"),
         };
 
-        (t0, tt)
+        t0 << tt
     }
 }

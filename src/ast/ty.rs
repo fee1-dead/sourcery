@@ -1,7 +1,6 @@
 use sourcery_derive::{Respace, Walk};
 
-use super::Path;
-use crate::ast::{Brackets, Expr, Trivia, Token};
+use crate::ast::{Brackets, Expr, QPath, Token, Trivia};
 use crate::Print;
 
 // [Ty; N]
@@ -31,7 +30,7 @@ pub struct TySlice {
 
 #[derive(Debug, Print, Walk, Respace)]
 pub enum Ty {
-    Path(Path),
+    Path(QPath),
     Slice(Brackets<TySlice>),
     Array(Brackets<TyArray>)
 }

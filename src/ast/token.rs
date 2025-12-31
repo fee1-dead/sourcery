@@ -291,7 +291,7 @@ macro_rules! define_tokens {
 }
 
 define_tokens! {
-    keywords(Mod(mod), Pub(pub), In(in), Type(type), Fn(fn), Const(const), Unsafe(unsafe), Async(async), Try(try), As(as));
+    keywords(Mod(mod), Pub(pub), In(in), Type(type), Fn(fn), Const(const), Unsafe(unsafe), Async(async), Try(try), As(as), If(if), Else(else));
     tokens(
         Semi(;),
         Comma(,),

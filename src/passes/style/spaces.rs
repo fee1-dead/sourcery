@@ -164,6 +164,14 @@ impl Respace for Option<(Visibility, Trivia)> {
     }
 }
 
+impl<T: Respace> Respace for Option<T> {
+    fn respace(&mut self, v: &mut Spaces) {
+        if let Some(x) = self.as_mut() {
+            x.respace(v);
+        }
+    }
+}
+
 impl<T: Respace> Respace for Brackets<T> {
     fn respace(&mut self, v: &mut Spaces) {
         self.0.respace(v)

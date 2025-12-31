@@ -1,8 +1,4 @@
-use crate::ast::{
-    Attribute, AttributeInner, AttributeStyle, AttributeValue, Brackets, Delimiter, List, Token,
-    Trivia,
-};
-use crate::parse::{Parser, Punct, TokenTree};
+use crate::prelude::*;
 
 #[derive(Clone, Copy)]
 pub enum AttrKind {
@@ -16,10 +12,10 @@ impl<'src> Parser<'src> {
     pub fn maybe_parse_attr(&mut self, kind: AttrKind) -> Option<(Trivia, Attribute)> {
         let is_attr = self.check_punct(Punct::Pound)
             && match kind {
-                AttrKind::Outer => self.peek_nth(1, |(_, t)| t.is_delim(Delimiter::Brackets)),
+                AttrKind::Outer => self.peek_nth(1, |L(_, t)| t.is_delim(Delimiter::Brackets)),
                 AttrKind::Inner => {
-                    self.peek_nth(1, |(_, t)| matches!(t, TokenTree::Punct(Punct::Bang)))
-                        && self.peek_nth(2, |(_, t)| t.is_delim(Delimiter::Brackets))
+                    self.peek_nth(1, |L(_, t)| matches!(t, TokenTree::Punct(Punct::Bang)))
+                        && self.peek_nth(2, |L(_, t)| t.is_delim(Delimiter::Brackets))
                 }
             };
         if !is_attr {
@@ -48,16 +44,16 @@ impl<'src> Parser<'src> {
         ))
     }
     pub fn parse_attr_inner(&mut self) -> AttributeInner {
-        let (t2, path) = self.parse_path();
+        let L(t2, path) = self.parse_path();
         let value = if let Some(t3) = self.eat_punct(Punct::Eq) {
-            let (t4, expr) = self.parse_expr();
+            let L(t4, expr) = self.parse_expr();
             AttributeValue::Value {
                 t3,
                 eq: Token![=],
                 t4,
                 expr,
             }
-        } else if let Some((val, tt)) = self.eat_delimited() {
+        } else if let Some(L(val, tt)) = self.eat_delimited() {
             AttributeValue::List(val, tt)
         } else {
             AttributeValue::None

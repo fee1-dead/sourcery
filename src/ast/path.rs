@@ -28,11 +28,26 @@ impl Respace for Path {
     }
 }
 
+#[derive(Debug, Print, Walk)]
 pub struct QSelf {
     pub left: Token![<],
     pub t1: Trivia,
-    pub ty: Ty,
-    pub as_: Option<(Trivia, Token![as], Path)>,
+    pub ty: Box<Ty>,
+    pub as_: Option<(Trivia, Token![as], Trivia, Path)>,
     pub tlast: Trivia,
     pub right: Token![>],
 }
+
+#[derive(Debug, Print, Walk)]
+pub struct QPath {
+    pub qself: Option<(QSelf, Trivia)>,
+    pub path: Path,
+}
+
+impl Respace for QPath {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
+}
+
+

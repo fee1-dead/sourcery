@@ -1,6 +1,4 @@
-use crate::ast::{
-    AsyncBlock, Attribute, AttributeInner, AttributeStyle, AttributeValue, BlockInner, Braces, Brackets, Const, Delimited, Expr, ExprKind, File, Fn, FnParam, FnRet, Ident, Item, ItemKind, List, Literal, Mod, Module, Parens, Pat, Path, PathSegment, Stmt, StmtKind, Trivia, TriviaN, TryBlock, Ty, TyAlias, TyArray, TySlice, VisRestricted, Visibility
-};
+use crate::prelude::*;
 use crate::parse::{TokenStream, TokenTree};
 
 mod minify;
@@ -62,6 +60,8 @@ pub trait Pass {
         visit_vis(Visibility);
         visit_vis_restricted(VisRestricted);
         visit_const(Const);
+        visit_qpath(QPath);
+        visit_qself(QSelf);
         visit_path(Path);
         visit_path_segment(PathSegment);
         visit_ty(Ty);
@@ -74,6 +74,9 @@ pub trait Pass {
         visit_fn_ret(FnRet);
         visit_async_block(AsyncBlock);
         visit_try_block(TryBlock);
+        visit_if(IfExpr);
+        visit_else(Else);
+        visit_else_kind(ElseKind);
         visit_block(BlockInner);
         visit_stmt(Stmt);
         visit_stmt_kind(StmtKind);
@@ -134,6 +137,25 @@ impl<T1: Visit, T2: Visit> Visit for (T1, T2) {
         let (a, b) = self;
         a.visit(p);
         b.visit(p);
+    }
+}
+
+impl<T1: Visit, T2: Visit, T3: Visit> Visit for (T1, T2, T3) {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        let (a, b, c) = self;
+        a.visit(p);
+        b.visit(p);
+        c.visit(p);
+    }
+}
+
+impl<T1: Visit, T2: Visit, T3: Visit, T4: Visit> Visit for (T1, T2, T3, T4) {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        let (a, b, c, d) = self;
+        a.visit(p);
+        b.visit(p);
+        c.visit(p);
+        d.visit(p);
     }
 }
 
