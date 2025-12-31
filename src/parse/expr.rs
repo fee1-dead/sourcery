@@ -47,13 +47,24 @@ impl<'src> super::Parser<'src> {
     fn parse_expr_if(&mut self) -> IfExpr {
         let L(t1, cond) = self.parse_expr_inner(false);
         let L(t2, then) = self.parse_block();
+        let else_ = if let Some(t3) = self.eat_kw("else") {
+            let L(t4, kind) = if let Some(t4) = self.eat_kw("if") {
+                let if_ = self.parse_expr_if();
+                t4 << ElseKind::ElseIf(Box::new(if_))
+            } else {
+                self.parse_block().map(ElseKind::Else)
+            };
+            Some(Else { t3, token: Token![else], t4, kind })
+        } else {
+            None
+        };
         IfExpr {
             token: Token![if],
             t1,
             cond: Box::new(cond),
             t2,
             then,
-            else_: None,
+            else_,
         }
     }
 }

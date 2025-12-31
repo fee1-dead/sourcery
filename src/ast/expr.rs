@@ -56,7 +56,7 @@ pub struct Else {
 #[derive(Debug, Print, Walk, Respace)]
 pub enum ElseKind {
     Else(Block),
-    If(Box<IfExpr>),
+    ElseIf(Box<IfExpr>),
 }
 
 
