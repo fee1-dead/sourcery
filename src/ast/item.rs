@@ -9,6 +9,7 @@ use super::{List, Attribute, Trivia, Ident, Visibility, Braces, Module, Token};
 #[derive(Debug, Print, Walk)]
 pub enum ItemKind {
     Const(Const),
+    Static(Static),
     Mod(Mod),
     TyAlias(TyAlias),
     Fn(Fn),
@@ -129,3 +130,28 @@ pub struct Const {
     pub t6: Trivia,
     pub semi: Semi,
 }
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Static {
+    pub vis: Option<(Visibility, Trivia)>,
+    pub kw: Token![static],
+    #[sourcery(spaces = 1)]
+    pub t1: TriviaN,
+    pub name: Ident,
+    #[sourcery(spaces = 0)]
+    pub t2: Trivia,
+    pub colon: Token![:],
+    #[sourcery(spaces = 1)]
+    pub t3: Trivia,
+    pub ty: Ty,
+    #[sourcery(spaces = 1)]
+    pub t4: Trivia,
+    pub eq: Token![=],
+    #[sourcery(spaces = 1)]
+    pub t5: Trivia,
+    pub expr: Expr,
+    #[sourcery(spaces = 0)]
+    pub t6: Trivia,
+    pub semi: Semi,
+}
+

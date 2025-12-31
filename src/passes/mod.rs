@@ -60,6 +60,7 @@ pub trait Pass {
         visit_vis(Visibility);
         visit_vis_restricted(VisRestricted);
         visit_const(Const);
+        visit_static(Static);
         visit_qpath(QPath);
         visit_qself(QSelf);
         visit_path(Path);

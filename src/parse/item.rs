@@ -138,6 +138,30 @@ impl Parser<'_> {
             semi: Token![;],
         }
     }
+    pub fn parse_item_static(&mut self, vis: Option<(Visibility, Trivia)>) -> Static {
+        let L(t1, name) = self.parse_ident();
+        let t2 = self.eat_punct(Punct::Colon).unwrap();
+        let L(t3, ty) = self.parse_ty();
+        let t4 = self.eat_punct(Punct::Eq).unwrap();
+        let L(t5, expr) = self.parse_expr();
+        let t6 = self.eat_punct(Punct::Semi).unwrap();
+        Static {
+            vis,
+            t1: TriviaN::new(t1),
+            kw: Token![static],
+            name,
+            t2,
+            colon: Token![:],
+            t3,
+            ty,
+            t4,
+            eq: Token![=],
+            t5,
+            expr,
+            t6,
+            semi: Token![;],
+        }
+    }
     pub fn parse_item(&mut self) -> (Trivia, Item) {
         let attrs = self.parse_attrs(AttrKind::Outer);
         let vis = self.parse_vis();
@@ -171,6 +195,10 @@ impl Parser<'_> {
         } else if let Some(tbeforeconst) = self.eat_kw("const") {
             let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforeconst);
             let kind = ItemKind::Const(self.parse_item_const(vis));
+            (t0, Item { attrs, kind })
+        } else if let Some(tbeforestatic) = self.eat_kw("static") {
+            let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforestatic);
+            let kind = ItemKind::Static(self.parse_item_static(vis));
             (t0, Item { attrs, kind })
         } else {
             unimplemented!("{:?}", self.token)
