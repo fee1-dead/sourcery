@@ -70,6 +70,9 @@ pub trait Pass {
         visit_ty_array(TyArray);
         visit_expr(Expr);
         visit_expr_kind(ExprKind);
+        visit_expr_struct(ExprStruct);
+        visit_expr_struct_fields(ExprStructFields);
+        visit_expr_struct_field(ExprStructField);
         visit_fn(Fn);
         visit_fn_param(FnParam);
         visit_fn_ret(FnRet);
@@ -99,7 +102,11 @@ pub trait Pass {
         visit_token_tree(TokenTree);
     }
 
-    fn visit_list<T: Walk + Visit>(&mut self, l: &mut List<T>) {
+    fn visit_list<T: Visit>(&mut self, l: &mut List<T>) {
+        l.walk(self);
+    }
+
+    fn visit_separated_list<T: Visit, S: Visit>(&mut self, l: &mut SeparatedList<T, S>) {
         l.walk(self);
     }
 }
@@ -114,9 +121,15 @@ impl<T: Visit> Visit for Box<T> {
     }
 }
 
-impl<T: Walk + Visit> Visit for List<T> {
+impl<T: Visit> Visit for List<T> {
     fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
         p.visit_list(self)
+    }
+}
+
+impl<T: Visit, S: Visit> Visit for SeparatedList<T, S> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        p.visit_separated_list(self);
     }
 }
 

@@ -17,6 +17,8 @@ pub enum ExprKind {
     Return(Return),
     Yield(Yield),
     Become(Become),
+    QPath(QPath),
+    Struct(ExprStruct),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -151,6 +153,35 @@ pub struct Become {
     #[sourcery(spaces = 1)]
     pub t1: Trivia,
     pub expr: Box<Expr>,
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct ExprStructField {
+    pub attrs: List<Attribute>,
+    pub ident: Ident,
+    pub expr: Option<(L<Token![:]>, L<Box<Expr>>)>,
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct ExprStructFields {
+    pub t1: Trivia,
+    pub list: SeparatedList<ExprStructField, Token![,]>,
+    pub dot2: Option<L<Token![..]>>,
+    pub rest: Option<L<Box<Expr>>>,
+    pub tlast: Trivia,
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct ExprStruct {
+    pub qpath: QPath,
+    pub t0: Trivia,
+    pub fields: Braces<ExprStructFields>,
+}
+
+impl Respace for ExprStruct {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
 }
 
 #[derive(Debug, Print, Walk, Respace)]

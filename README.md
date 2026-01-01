@@ -100,7 +100,7 @@ Parsing & AST:
     - [x] Breaks/Continue/returns/Yields/Becomes
     - [ ] Yeets
     - [ ] Macros
-    - [ ] Structs
+    - [x] Structs
     - [ ] Try (`x?`)
 - [ ] Statements
     - [ ] Lets

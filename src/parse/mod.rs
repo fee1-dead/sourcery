@@ -296,6 +296,9 @@ impl<'src> Parser<'src> {
             None
         }
     }
+    pub fn check_eof(&self) -> bool {
+        matches!(self.token.1, TokenTree::Eof)
+    }
     pub fn eat_eof(&mut self) -> Option<Trivia> {
         self.eat(|tt| matches!(tt, TokenTree::Eof)).map(|L(t, _)| t)
     }

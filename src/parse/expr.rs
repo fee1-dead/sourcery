@@ -128,7 +128,68 @@ impl<'src> super::Parser<'src> {
             let L(t1, expr) = self.parse_expr().map(Box::new);
             t << ExprKind::Become(Become { token: Token![become], t1, expr })
         } else {
-            panic!("not an expr anymore: {:?}", self.token)
+            let L(t, qpath) = self.parse_qpath();
+            t << self.parse_rest_of_path_or_macro_or_struct(qpath, allow_struct)
+        }
+    }
+
+    fn parse_field_value(&mut self) -> L<ExprStructField> {
+        let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        let L(t, ident) = self.parse_ident();
+        attrs.push_trivia(t);
+        let expr = if self.check_punct(Punct::Colon) || ident.0.as_bytes().iter().all(|i| i.is_ascii_digit()) {
+            let colon = self.eat_punct(Punct::Colon).unwrap();
+            let value = self.parse_expr().map(Box::new);
+            Some((colon << Token![:], value))
+        } else {
+            None
+        };
+        t0 << ExprStructField {
+            attrs,
+            ident,
+            expr
+        }
+    }
+
+    fn parse_rest_of_struct(&mut self, qpath: QPath) -> ExprStruct {
+        self.eat_delim(Delimiter::Braces, |t0, mut this| {
+            let mut builder = SeparatedListBuilder::new();
+            let tlast = loop {
+                if let Some(tlast) = this.eat_eof() {
+                    break tlast;
+                };
+                if this.check_punct(Punct::DotDot) {
+                    let L(t1, list) = builder.build();
+                    let dot2 = this.bump().map(|_| Token![..]);
+                    let rest = (!this.check_eof()).then(|| this.parse_expr().map(Box::new));
+                    let tlast = this.eat_eof().unwrap();
+                    return ExprStruct {
+                        qpath, t0, fields: Braces(ExprStructFields { t1, list, dot2: Some(dot2), rest, tlast })
+                    }
+                }
+                let L(t, field) = this.parse_field_value();
+                builder.push_value(t, field);
+                if let Some(tlast) = this.eat_eof() {
+                    break tlast;
+                };
+                let t = this.eat_punct(Punct::Comma).unwrap();
+                builder.push_sep(t, Token![,]);
+            };
+
+            let L(t1, list) = builder.build();
+
+            ExprStruct {
+                qpath, t0, fields: Braces(ExprStructFields { t1, list, dot2: None, rest: None, tlast }),
+            }
+        }).unwrap()
+    }
+
+    fn parse_rest_of_path_or_macro_or_struct(&mut self, qpath: QPath, allow_struct: bool) -> ExprKind {
+        // TODO macro
+        if allow_struct && self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
+            ExprKind::Struct(self.parse_rest_of_struct(qpath))
+        } else {
+            ExprKind::QPath(qpath)
         }
     }
 

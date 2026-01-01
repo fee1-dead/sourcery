@@ -5,6 +5,15 @@ pub struct PathSegment {
     pub ident: Ident,
 }
 
+pub enum PathSegmentArguments {
+    AngleBracketed {
+        colon2: Option<L<Token![::]>>,
+        t1: Trivia,
+        lt: Token![<],
+
+    }
+}
+
 #[derive(Debug, Print)]
 pub struct Path {
     pub leading_colon: Option<(Token![::], Trivia)>,
@@ -45,8 +54,11 @@ pub struct QPath {
 }
 
 impl Respace for QPath {
-    fn respace(&mut self, _: &mut Spaces) {
-        todo!()
+    fn respace(&mut self, v: &mut Spaces) {
+        if self.qself.is_some() {
+            todo!()
+        }
+        self.path.respace(v);
     }
 }
 
