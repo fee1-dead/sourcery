@@ -1,5 +1,4 @@
-use crate::ast::{self, Brackets, Const, Fn, Ident, Literal, Trivia, TriviaN, Trivium, Visibility};
-use crate::passes::Pass;
+use crate::prelude::*;
 
 pub(crate) struct Spaces;
 
@@ -92,7 +91,7 @@ mod tests {
     }
 }
 
-fn fixup_path(x: &mut ast::Path) {
+fn fixup_path(x: &mut Path) {
     if let Some((_, trivia)) = &mut x.leading_colon {
         *trivia = shrink_no_space(trivia.take()).into()
     }
@@ -157,6 +156,23 @@ impl Respace for Literal {
 impl Respace for Ident {
     fn respace(&mut self, _: &mut Spaces) {}
 }
+
+impl Respace for Option<L<Ident>> {
+    fn respace(&mut self, _: &mut Spaces) {
+        if let Some(L(t, _)) = self {
+            s1(t)
+        }
+    }
+}
+
+impl Respace for Option<L<Box<Expr>>> {
+    fn respace(&mut self, _: &mut Spaces) {
+        if let Some(L(t, _)) = self {
+            s1(t)
+        }
+    }
+}
+
 
 impl Respace for Option<(Visibility, Trivia)> {
     fn respace(&mut self, _: &mut Spaces) {

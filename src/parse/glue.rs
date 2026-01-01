@@ -119,6 +119,10 @@ impl<'src> Gluer<'src> {
                 self.lexer.next();
                 TokenTree::Punct(Punct::OrEq)
             }
+            TokenKind::Or if matches!(self.peek(), (t, TokenKind::Or, _) if t.is_empty()) => {
+                self.lexer.next();
+                TokenTree::Punct(Punct::OrOr)
+            }
             TokenKind::Or => TokenTree::Punct(Punct::Or),
             TokenKind::Star if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => {
                 self.lexer.next();

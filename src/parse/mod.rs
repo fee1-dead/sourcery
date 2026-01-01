@@ -1,16 +1,9 @@
 use std::ops::Shl;
 use std::{mem, vec};
 
-use sourcery_derive::Walk;
-
-use crate::ast::{Delimited, Delimiter, Parens, QPath, QSelf, TriviaN};
-use crate::ast::{File, List, Module, Path, PathSegment, VisRestricted, Visibility};
-use crate::ast::{Ident, Trivia};
-use crate::ast::{Literal, Token};
 use crate::parse::attr::AttrKind;
 use crate::parse::glue::Gluer;
-use crate::passes::Visit;
-use crate::{Print, lex};
+use crate::prelude::*;
 
 mod attr;
 mod expr;
@@ -163,8 +156,10 @@ pub enum Punct {
     Minus,
     MinusEq,
     And,
+    AndAnd,
     AndEq,
     Or,
+    OrOr,
     OrEq,
     Plus,
     PlusEq,
@@ -199,9 +194,9 @@ macro_rules! impl_print_for_punct {
 impl_print_for_punct!(
     Semi, Comma, Dot, DotDot, DotDotEq, DotDotDot, At, Pound, Tilde,
     Question, Colon, ColonColon, Dollar, Eq, EqEq, Bang, BangEq, Lt,
-    LtEq, LtLtEq, Gt, GtEq, GtGtEq, Minus, MinusEq, And, AndEq, Or,
-    OrEq, Plus, PlusEq, Star, StarEq, Slash, SlashEq, Caret, CaretEq,
-    Percent, PercentEq, RThinArrow, RFatArrow, LThinArrow
+    LtEq, LtLtEq, Gt, GtEq, GtGtEq, Minus, MinusEq, And, AndAnd, AndEq,
+    Or, OrOr, OrEq, Plus, PlusEq, Star, StarEq, Slash, SlashEq, Caret,
+    CaretEq, Percent, PercentEq, RThinArrow, RFatArrow, LThinArrow
 );
 
 #[derive(Clone, Debug)]
@@ -210,6 +205,20 @@ pub struct WithLeadingTrivia<T>(pub Trivia, pub T);
 impl<T> WithLeadingTrivia<T> {
     pub fn map<F: FnOnce(T) -> R, R>(self, f: F) -> WithLeadingTrivia<R> {
         WithLeadingTrivia(self.0, f(self.1))
+    }
+}
+
+impl<T: Print> Print for WithLeadingTrivia<T> {
+    fn print(&self, dest: &mut String) {
+        self.0.print(dest);
+        self.1.print(dest);
+    }
+}
+
+impl<T: Visit> Visit for WithLeadingTrivia<T> {
+    fn visit<P: Pass + ?Sized>(&mut self, p: &mut P) {
+        self.0.visit(p);
+        self.1.visit(p)
     }
 }
 
@@ -238,7 +247,7 @@ impl<'src> Parser<'src> {
         p
     }
     pub fn new(s: &'src str) -> Self {
-        Parser::create(Gluer::new(lex::tokenize(s)))
+        Parser::create(Gluer::new(crate::lex::tokenize(s)))
     }
     pub fn bump(&mut self) -> WithLeadingTrivia<TokenTree> {
         mem::replace(&mut self.token, self.tokens.next())
@@ -458,5 +467,5 @@ pub fn parse_trivia(s: &str) -> Trivia {
 }
 
 pub fn parse_to_tokenstream(s: &str) -> TokenStream {
-    Gluer::new(lex::tokenize(s)).collect()
+    Gluer::new(crate::lex::tokenize(s)).collect()
 }

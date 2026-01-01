@@ -76,6 +76,7 @@ Parsing & AST:
     - [ ] Gen block
     - [ ] Calls
     - [ ] Tuples
+    - [ ] Paren
     - [ ] Binops
     - [ ] Unops
     - [ ] Literals
@@ -96,11 +97,10 @@ Parsing & AST:
     - [ ] Underscores
     - [ ] Paths
     - [ ] References
-    - [ ] Breaks/Continue/returns/Yields/Yeets/Becomes
-    - [ ] Returns
+    - [x] Breaks/Continue/returns/Yields/Becomes
+    - [ ] Yeets
     - [ ] Macros
     - [ ] Structs
-    - [ ] Paren
     - [ ] Try (`x?`)
 - [ ] Statements
     - [ ] Lets

@@ -12,6 +12,11 @@ pub enum ExprKind {
     While(While),
     For(For),
     Loop(Loop),
+    Break(Break),
+    Continue(Continue),
+    Return(Return),
+    Yield(Yield),
+    Become(Become),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -61,6 +66,22 @@ pub struct IfExpr {
 }
 
 #[derive(Debug, Print, Walk, Respace)]
+pub struct Else {
+    #[sourcery(spaces = 1)]
+    pub t3: Trivia,
+    pub token: Token![else],
+    #[sourcery(spaces = 1)]
+    pub t4: Trivia,
+    pub kind: ElseKind,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub enum ElseKind {
+    Else(Block),
+    ElseIf(Box<IfExpr>),
+}
+
+#[derive(Debug, Print, Walk, Respace)]
 pub struct While {
     pub label: Option<Label>,
     pub token: Token![while],
@@ -100,21 +121,37 @@ pub struct Loop {
 }
 
 #[derive(Debug, Print, Walk, Respace)]
-pub struct Else {
-    #[sourcery(spaces = 1)]
-    pub t3: Trivia,
-    pub token: Token![else],
-    #[sourcery(spaces = 1)]
-    pub t4: Trivia,
-    pub kind: ElseKind,
+pub struct Break {
+    pub token: Token![break],
+    pub label: Option<L<Ident>>,
+    pub expr: Option<L<Box<Expr>>>,
 }
 
 #[derive(Debug, Print, Walk, Respace)]
-pub enum ElseKind {
-    Else(Block),
-    ElseIf(Box<IfExpr>),
+pub struct Continue {
+    pub token: Token![continue],
+    pub label: Option<L<Ident>>,
 }
 
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Return {
+    pub token: Token![return],
+    pub expr: Option<L<Box<Expr>>>,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Yield {
+    pub token: Token![yield],
+    pub expr: Option<L<Box<Expr>>>,
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct Become {
+    pub token: Token![become],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub expr: Box<Expr>,
+}
 
 #[derive(Debug, Print, Walk, Respace)]
 pub struct Expr {

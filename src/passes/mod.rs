@@ -85,6 +85,11 @@ pub trait Pass {
         visit_while(While);
         visit_for(For);
         visit_loop(Loop);
+        visit_break(Break);
+        visit_continue(Continue);
+        visit_return(Return);
+        visit_yield(Yield);
+        visit_become(Become);
         visit_stmt(Stmt);
         visit_stmt_kind(StmtKind);
         visit_ty_alias(TyAlias);
