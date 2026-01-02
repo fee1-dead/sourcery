@@ -19,8 +19,10 @@ pub enum ExprKind {
     Become(Become),
     QPath(QPath),
     Struct(ExprStruct),
-    Tuple(Parens<ExprTuple>),
+    Tuple(Parens<TupleOrArrayContents>),
     Paren(Parens<ExprParen>),
+    Array(Brackets<TupleOrArrayContents>),
+    Repeat(Brackets<ExprRepeat>),
     Macro(MacroCall),
 }
 
@@ -188,7 +190,7 @@ impl Respace for ExprStruct {
 }
 
 #[derive(Debug, Print, Walk)]
-pub struct ExprTuple {
+pub struct TupleOrArrayContents {
     pub t1: Trivia,
     pub contents: SeparatedList<Expr, Token![,]>,
 }
@@ -200,13 +202,36 @@ pub struct ExprParen {
     pub t2: Trivia,
 }
 
-impl Respace for Parens<ExprTuple> {
+#[derive(Debug, Print, Walk)]
+pub struct ExprRepeat {
+    pub t1: Trivia,
+    pub elem: Box<Expr>,
+    pub t2: Trivia,
+    pub semi: Token![;],
+    pub t3: Trivia,
+    pub len: Box<Expr>,
+    pub t4: Trivia,
+}
+
+impl Respace for Parens<TupleOrArrayContents> {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
+}
+ 
+impl Respace for Brackets<TupleOrArrayContents> {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }
 }
 
 impl Respace for Parens<ExprParen> {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
+}
+
+impl Respace for Brackets<ExprRepeat> {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }

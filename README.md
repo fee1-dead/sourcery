@@ -71,7 +71,7 @@ Parsing & AST:
     - [ ] Where clauses
     - [ ] Generic params
 - [ ] [Expressions](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.ExprKind.html)
-    - [ ] Arrays and array repeats
+    - [x] Arrays and array repeats
     - [x] Blocks: normal, unsafe, const, async, try
     - [ ] Gen block
     - [ ] Calls

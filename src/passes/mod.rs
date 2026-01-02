@@ -75,7 +75,8 @@ pub trait Pass {
         visit_expr_struct(ExprStruct);
         visit_expr_struct_fields(ExprStructFields);
         visit_expr_struct_field(ExprStructField);
-        visit_expr_tuple(ExprTuple);
+        visit_tuple_or_array_contents(TupleOrArrayContents);
+        visit_expr_repeat(ExprRepeat);
         visit_expr_paren(ExprParen);
         visit_macro_call(MacroCall);
         visit_fn(Fn);

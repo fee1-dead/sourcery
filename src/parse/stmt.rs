@@ -22,6 +22,7 @@ impl<'src> Parser<'src> {
 
     pub fn parse_block(&mut self) -> L<Block> {
         self.eat_delim(Delimiter::Braces, |t0, mut this | {
+            // TODO inner attributes?
             let mut stmts = List::default();
             let mut tstart = None;
             let tend = loop {

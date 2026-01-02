@@ -82,6 +82,35 @@ impl<'src> super::Parser<'src> {
             None
         }
     }
+    fn parse_array_or_repeat(&mut self) -> Option<L<ExprKind>> {
+        self.eat_delim(Delimiter::Brackets, |t0, mut this| {
+            if let Some(t1) = this.eat_eof() {
+                return t0 << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents: SeparatedList::new() }))
+            }
+            let L(t1, first) = this.parse_expr();
+            if let Some(t2) = this.eat_punct(Punct::Semi) {
+                let L(t3, len) = this.parse_expr().map(Box::new);
+                let t4 = this.eat_eof().unwrap();
+                t0 << ExprKind::Repeat(Brackets(ExprRepeat { t1, elem: Box::new(first), t2, semi: Token![;], t3, len, t4 }))
+            } else {
+                let mut contents = SeparatedList::new_single(first);
+                loop {
+                    if let Some(tlast) = this.eat_eof() {
+                        contents.push_trivia(tlast);
+                        break t0 << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }))
+                    }
+                    let tnext = this.eat_punct(Punct::Comma).unwrap();
+                    contents.push_sep(tnext, Token![,]);
+                    if let Some(tlast) = this.eat_eof() {
+                        contents.push_trivia(tlast);
+                        break t0 << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }))
+                    }
+                    let L(tnext, x) = this.parse_expr();
+                    contents.push_value(tnext, x);
+                }
+            }
+        })
+    }
     fn parse_atom_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
         // TODO: closures, builtin#, arrays/repeats, let, range, infer, match
         if let Some(L(t, l)) = self.eat_literal() {
@@ -106,6 +135,7 @@ impl<'src> super::Parser<'src> {
             .or_else(|| self.parse_const_block())
             .or_else(|| self.parse_unsafe_block())
             .or_else(|| self.parse_expr_if().map(|x| x.map(ExprKind::If)))
+            .or_else(|| self.parse_array_or_repeat())
         {
             e
         } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
@@ -191,7 +221,7 @@ impl<'src> super::Parser<'src> {
                 let mut list = SeparatedList::new();
                 list.push_trivia(tlast);
                 return t0
-                    << ExprKind::Tuple(Parens(ExprTuple {
+                    << ExprKind::Tuple(Parens(TupleOrArrayContents {
                         t1: Trivia::default(),
                         contents: list,
                     }));
@@ -220,7 +250,7 @@ impl<'src> super::Parser<'src> {
             };
             elems.push_trivia(tlast);
 
-            t0 << ExprKind::Tuple(Parens(ExprTuple {
+            t0 << ExprKind::Tuple(Parens(TupleOrArrayContents {
                 t1,
                 contents: elems,
             }))
