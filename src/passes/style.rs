@@ -2,6 +2,7 @@ use crate::prelude::*;
 
 pub mod spaces;
 
+/*
 struct SizeEstimator(usize);
 
 impl Pass for SizeEstimator {
@@ -13,7 +14,7 @@ impl Pass for SizeEstimator {
         self.0 += t.iter().map(|x| x.snippet().len()).sum::<usize>();
     }
 }
-
+*/
 
 pub fn format_with_style_guide(f: &mut File) {
     spaces::Spaces.visit_file(f);

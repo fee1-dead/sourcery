@@ -75,14 +75,14 @@ Parsing & AST:
     - [x] Blocks: normal, unsafe, const, async, try
     - [ ] Gen block
     - [ ] Calls
-    - [ ] Tuples
-    - [ ] Paren
+    - [x] Tuples
+    - [x] Paren
     - [ ] Binops
     - [ ] Unops
-    - [ ] Literals
+    - [x] Literals
     - [ ] Casts
     - [x] Ifs
-    - [ ] Whiles
+    - [x] Whiles
     - [ ] Lets (in ifs and whiles)
     - [x] For loops
     - [x] Loops
@@ -95,11 +95,11 @@ Parsing & AST:
     - [ ] Indexing
     - [ ] Ranges
     - [ ] Underscores
-    - [ ] Paths
+    - [x] Paths
     - [ ] References
     - [x] Breaks/Continue/returns/Yields/Becomes
     - [ ] Yeets
-    - [ ] Macros
+    - [x] Macros
     - [x] Structs
     - [ ] Try (`x?`)
 - [ ] Statements

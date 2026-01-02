@@ -344,7 +344,8 @@ impl<'src> Parser<'src> {
 
     pub fn parse_path_segment(&mut self) -> L<PathSegment> {
         let L(t0, ident) = self.parse_ident();
-        t0 << PathSegment { ident }
+        // TODO
+        t0 << PathSegment { ident, args: None }
     }
     pub fn parse_path(&mut self) -> L<Path> {
         let (t0, leading_colon, seg1) = if let Some(t0) = self.eat_punct(Punct::ColonColon) {
@@ -414,7 +415,7 @@ impl<'src> Parser<'src> {
                         None,
                         Path {
                             leading_colon: None,
-                            seg1: PathSegment { ident },
+                            seg1: PathSegment { ident, args: None },
                             rest: vec![],
                         },
                     )

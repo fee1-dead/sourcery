@@ -18,6 +18,9 @@ mod pat;
 pub use pat::Pat;
 mod path;
 pub use path::*;
+mod macros;
+pub use macros::*;
+
 
 use crate::prelude::*;
 
@@ -116,7 +119,7 @@ impl<T: crate::passes::Visit> crate::passes::Walk for List<T> {
 enum SeparatedListInner<T, S> {
     Empty,
     NonEmpty {
-        first: T,
+        first: Box<T>,
         rest: Vec<(Trivia, S, Trivia, T)>,
         trailing: Option<L<S>>,
     }
@@ -137,13 +140,38 @@ impl<T, S> SeparatedList<T, S> {
     pub fn new() -> SeparatedList<T, S> {
         SeparatedList { inner: SeparatedListInner::Empty, tlast: Trivia::default() }
     }
+
     pub fn new_single(x: T) -> SeparatedList<T, S> {
-        SeparatedList { inner: SeparatedListInner::NonEmpty { first: x, rest: Vec::new(), trailing: None }, tlast: Trivia::default() }
+        SeparatedList { inner: SeparatedListInner::NonEmpty { first: Box::new(x), rest: Vec::new(), trailing: None }, tlast: Trivia::default() }
+    }
+
+    pub fn push_value(&mut self, t: Trivia, x: T) {
+        match &mut self.inner {
+            SeparatedListInner::Empty => {
+                panic!("cannot push to an empty separated list, use new_single")
+            }
+            SeparatedListInner::NonEmpty { first: _, rest, trailing } => {
+                let L(t0, s) = trailing.take().unwrap();
+                rest.push((t0, s, t, x));
+            }
+        }
+    }
+
+    pub fn push_sep(&mut self, t: Trivia, s: S) {
+        match &mut self.inner {
+            SeparatedListInner::Empty => {
+                panic!("cannot push to an empty separated list, use new_single")
+            }
+            SeparatedListInner::NonEmpty { first: _, rest: _, trailing } => {
+                assert!(trailing.is_none(), "should not already have trailing separator");
+                *trailing = Some(t << s)
+            }
+        }
     }
 
     pub fn push_trivia(&mut self, t: Trivia) {
         self.tlast.extend(t);
-    } 
+    }
 }
 
 pub struct SeparatedListBuilder<T, S> {
@@ -156,27 +184,18 @@ impl<T, S> SeparatedListBuilder<T, S> {
         Self { t1: Trivia::default(), l: SeparatedList::new() }
     }
     pub fn push_value(&mut self, t: Trivia, x: T) {
-        match &mut self.l.inner {
+        match self.l.inner {
             SeparatedListInner::Empty => {
                 self.t1 = t;
-                self.l.inner = SeparatedListInner::NonEmpty { first: x, rest: Vec::new(), trailing: None };
+                self.l.inner = SeparatedListInner::NonEmpty { first: Box::new(x), rest: Vec::new(), trailing: None };
             }
-            SeparatedListInner::NonEmpty { first: _, rest, trailing } => {
-                let L(t0, s) = trailing.take().unwrap();
-                rest.push((t0, s, t, x));
+            SeparatedListInner::NonEmpty { .. } => {
+                self.l.push_value(t, x);
             }
         }
     }
     pub fn push_sep(&mut self, t: Trivia, s: S) {
-        match &mut self.l.inner {
-            SeparatedListInner::Empty => {
-                panic!("pushing separator to an empty list")
-            }
-            SeparatedListInner::NonEmpty { first: _, rest: _, trailing } => {
-                assert!(trailing.is_none(), "already has trailing separator");
-                *trailing = Some(t << s)
-            }
-        }
+        self.l.push_sep(t, s);
     }
     pub fn build(self) -> L<SeparatedList<T, S>> {
         self.t1 << self.l

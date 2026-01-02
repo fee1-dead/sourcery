@@ -19,6 +19,9 @@ pub enum ExprKind {
     Become(Become),
     QPath(QPath),
     Struct(ExprStruct),
+    Tuple(Parens<ExprTuple>),
+    Paren(Parens<ExprParen>),
+    Macro(MacroCall),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -179,6 +182,31 @@ pub struct ExprStruct {
 }
 
 impl Respace for ExprStruct {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct ExprTuple {
+    pub t1: Trivia,
+    pub contents: SeparatedList<Expr, Token![,]>,
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct ExprParen {
+    pub t1: Trivia,
+    pub expr: Box<Expr>,
+    pub t2: Trivia,
+}
+
+impl Respace for Parens<ExprTuple> {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
+}
+
+impl Respace for Parens<ExprParen> {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }

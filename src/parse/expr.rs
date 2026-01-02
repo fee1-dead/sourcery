@@ -10,19 +10,21 @@ impl<'src> super::Parser<'src> {
             || self.peek(|tt| {
                 matches!(
                     tt,
-                    TokenTree::Group(_) | TokenTree::Literal(_) | TokenTree::Lifetime(_) |
-                    TokenTree::Punct(
-                        Punct::Bang
-                            | Punct::Minus
-                            | Punct::Star
-                            | Punct::Or
-                            | Punct::And
-                            | Punct::AndAnd
-                            | Punct::DotDot
-                            | Punct::Lt
-                            | Punct::ColonColon
-                            | Punct::Pound
-                    )
+                    TokenTree::Group(_)
+                        | TokenTree::Literal(_)
+                        | TokenTree::Lifetime(_)
+                        | TokenTree::Punct(
+                            Punct::Bang
+                                | Punct::Minus
+                                | Punct::Star
+                                | Punct::Or
+                                | Punct::And
+                                | Punct::AndAnd
+                                | Punct::DotDot
+                                | Punct::Lt
+                                | Punct::ColonColon
+                                | Punct::Pound
+                        )
                 )
             })
     }
@@ -32,10 +34,60 @@ impl<'src> super::Parser<'src> {
         attrs.push_trivia(t1);
         t0 << Expr { attrs, kind }
     }
+    fn parse_expr_with_earlier_boundary_rule(&mut self) -> L<Expr> {
+        todo!()
+    }
+    fn parse_try_block(&mut self) -> Option<L<ExprKind>> {
+        if self.check_ident("try") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
+            let t = self.eat_ident("try").unwrap().0;
+            let L(t1, block) = self.parse_block();
+            Some(
+                t << ExprKind::TryBlock(TryBlock {
+                    token: Token![try],
+                    t1,
+                    block,
+                }),
+            )
+        } else {
+            None
+        }
+    }
+    fn parse_const_block(&mut self) -> Option<L<ExprKind>> {
+        if self.check_ident("const") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
+            let t = self.eat_ident("const").unwrap().0;
+            let L(t1, block) = self.parse_block();
+            Some(
+                t << ExprKind::Const(ConstBlock {
+                    token: Token![const],
+                    t1,
+                    block,
+                }),
+            )
+        } else {
+            None
+        }
+    }
+    fn parse_unsafe_block(&mut self) -> Option<L<ExprKind>> {
+        if self.check_ident("unsafe") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
+            let t = self.eat_ident("unsafe").unwrap().0;
+            let L(t1, block) = self.parse_block();
+            Some(
+                t << ExprKind::Unsafe(UnsafeBlock {
+                    token: Token![unsafe],
+                    t1,
+                    block,
+                }),
+            )
+        } else {
+            None
+        }
+    }
     fn parse_atom_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
-        // TODO: closures, parens/tuples, builtin#, path/macro/struct, arrays/repeats, let, range, infer, match
+        // TODO: closures, builtin#, arrays/repeats, let, range, infer, match
         if let Some(L(t, l)) = self.eat_literal() {
             t << ExprKind::Literal(l)
+        } else if self.peek(|x| x.is_delim(Delimiter::Parens)) {
+            self.parse_paren_or_tuple()
         } else if self.check_ident("async")
             && self.peek2(|tt| {
                 tt.is_delim(Delimiter::Braces)
@@ -49,37 +101,18 @@ impl<'src> super::Parser<'src> {
                 t1,
                 block,
             })
-        } else if self.check_ident("try") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
-            let t = self.eat_ident("try").unwrap().0;
-            let L(t1, block) = self.parse_block();
-            t << ExprKind::TryBlock(TryBlock {
-                token: Token![try],
-                t1,
-                block,
-            })
-        } else if self.check_ident("const") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
-            let t = self.eat_ident("const").unwrap().0;
-            let L(t1, block) = self.parse_block();
-            t << ExprKind::Const(ConstBlock {
-                token: Token![const],
-                t1,
-                block,
-            })
-        } else if self.check_ident("unsafe") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
-            let t = self.eat_ident("unsafe").unwrap().0;
-            let L(t1, block) = self.parse_block();
-            t << ExprKind::Unsafe(UnsafeBlock {
-                token: Token![unsafe],
-                t1,
-                block,
-            })
+        } else if let Some(e) = self
+            .parse_try_block()
+            .or_else(|| self.parse_const_block())
+            .or_else(|| self.parse_unsafe_block())
+            .or_else(|| self.parse_expr_if().map(|x| x.map(ExprKind::If)))
+        {
+            e
         } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
             self.parse_block()
                 .map(|block| LabeledBlock { label: None, block })
                 .map(ExprKind::Block)
-        } else if let Some(t) = self.eat_kw("if") {
-            t << ExprKind::If(self.parse_expr_if())
-        } else if self.check_ident("while") {
+        }else if self.check_ident("while") {
             self.parse_expr_while().map(ExprKind::While)
         } else if self.check_ident("for") {
             self.parse_expr_for().map(ExprKind::For)
@@ -93,13 +126,19 @@ impl<'src> super::Parser<'src> {
             } else {
                 None
             };
-            let expr = if self.peek_expr() && (allow_struct || !self.peek(|t| t.is_delim(Delimiter::Braces))) {
+            let expr = if self.peek_expr()
+                && (allow_struct || !self.peek(|t| t.is_delim(Delimiter::Braces)))
+            {
                 Some(self.parse_expr().map(Box::new))
             } else {
                 None
             };
 
-            t << ExprKind::Break(Break { token: Token![break], label, expr })
+            t << ExprKind::Break(Break {
+                token: Token![break],
+                label,
+                expr,
+            })
         } else if let Some(t) = self.eat_kw("continue") {
             let label = if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
                 Some(self.bump().map(|t| t.into_lifetime().unwrap()))
@@ -107,7 +146,10 @@ impl<'src> super::Parser<'src> {
                 None
             };
 
-            t << ExprKind::Continue(Continue { token: Token![continue], label })
+            t << ExprKind::Continue(Continue {
+                token: Token![continue],
+                label,
+            })
         } else if let Some(t) = self.eat_kw("return") {
             let expr = if self.peek_expr() {
                 Some(self.parse_expr().map(Box::new))
@@ -115,7 +157,10 @@ impl<'src> super::Parser<'src> {
                 None
             };
 
-            t << ExprKind::Return(Return { token: Token![return], expr })
+            t << ExprKind::Return(Return {
+                token: Token![return],
+                expr,
+            })
         } else if let Some(t) = self.eat_kw("yield") {
             let expr = if self.peek_expr() {
                 Some(self.parse_expr().map(Box::new))
@@ -123,32 +168,80 @@ impl<'src> super::Parser<'src> {
                 None
             };
 
-            t << ExprKind::Yield(Yield { token: Token![yield], expr })
-        }  else if let Some(t) = self.eat_kw("become") {
+            t << ExprKind::Yield(Yield {
+                token: Token![yield],
+                expr,
+            })
+        } else if let Some(t) = self.eat_kw("become") {
             let L(t1, expr) = self.parse_expr().map(Box::new);
-            t << ExprKind::Become(Become { token: Token![become], t1, expr })
+            t << ExprKind::Become(Become {
+                token: Token![become],
+                t1,
+                expr,
+            })
         } else {
             let L(t, qpath) = self.parse_qpath();
             t << self.parse_rest_of_path_or_macro_or_struct(qpath, allow_struct)
         }
     }
 
+    fn parse_paren_or_tuple(&mut self) -> L<ExprKind> {
+        self.eat_delim(Delimiter::Parens, |t0, mut this| {
+            if let Some(tlast) = this.eat_eof() {
+                let mut list = SeparatedList::new();
+                list.push_trivia(tlast);
+                return t0
+                    << ExprKind::Tuple(Parens(ExprTuple {
+                        t1: Trivia::default(),
+                        contents: list,
+                    }));
+            }
+            let L(t1, first) = this.parse_expr();
+            if let Some(t2) = this.eat_eof() {
+                return t0
+                    << ExprKind::Paren(Parens(ExprParen {
+                        t1,
+                        expr: Box::new(first),
+                        t2,
+                    }));
+            }
+            let mut elems = SeparatedList::new_single(first);
+            let tlast = loop {
+                let t = this.eat_punct(Punct::Comma).unwrap();
+                elems.push_sep(t, Token![,]);
+                if let Some(tlast) = this.eat_eof() {
+                    break tlast;
+                }
+                let L(t, expr) = this.parse_expr();
+                elems.push_value(t, expr);
+                if let Some(tlast) = this.eat_eof() {
+                    break tlast;
+                }
+            };
+            elems.push_trivia(tlast);
+
+            t0 << ExprKind::Tuple(Parens(ExprTuple {
+                t1,
+                contents: elems,
+            }))
+        })
+        .unwrap()
+    }
+
     fn parse_field_value(&mut self) -> L<ExprStructField> {
         let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
         let L(t, ident) = self.parse_ident();
         attrs.push_trivia(t);
-        let expr = if self.check_punct(Punct::Colon) || ident.0.as_bytes().iter().all(|i| i.is_ascii_digit()) {
+        let expr = if self.check_punct(Punct::Colon)
+            || ident.0.as_bytes().iter().all(|i| i.is_ascii_digit())
+        {
             let colon = self.eat_punct(Punct::Colon).unwrap();
             let value = self.parse_expr().map(Box::new);
             Some((colon << Token![:], value))
         } else {
             None
         };
-        t0 << ExprStructField {
-            attrs,
-            ident,
-            expr
-        }
+        t0 << ExprStructField { attrs, ident, expr }
     }
 
     fn parse_rest_of_struct(&mut self, qpath: QPath) -> ExprStruct {
@@ -164,8 +257,16 @@ impl<'src> super::Parser<'src> {
                     let rest = (!this.check_eof()).then(|| this.parse_expr().map(Box::new));
                     let tlast = this.eat_eof().unwrap();
                     return ExprStruct {
-                        qpath, t0, fields: Braces(ExprStructFields { t1, list, dot2: Some(dot2), rest, tlast })
-                    }
+                        qpath,
+                        t0,
+                        fields: Braces(ExprStructFields {
+                            t1,
+                            list,
+                            dot2: Some(dot2),
+                            rest,
+                            tlast,
+                        }),
+                    };
                 }
                 let L(t, field) = this.parse_field_value();
                 builder.push_value(t, field);
@@ -179,14 +280,36 @@ impl<'src> super::Parser<'src> {
             let L(t1, list) = builder.build();
 
             ExprStruct {
-                qpath, t0, fields: Braces(ExprStructFields { t1, list, dot2: None, rest: None, tlast }),
+                qpath,
+                t0,
+                fields: Braces(ExprStructFields {
+                    t1,
+                    list,
+                    dot2: None,
+                    rest: None,
+                    tlast,
+                }),
             }
-        }).unwrap()
+        })
+        .unwrap()
     }
 
-    fn parse_rest_of_path_or_macro_or_struct(&mut self, qpath: QPath, allow_struct: bool) -> ExprKind {
-        // TODO macro
-        if allow_struct && self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
+    fn parse_rest_of_path_or_macro_or_struct(
+        &mut self,
+        qpath: QPath,
+        allow_struct: bool,
+    ) -> ExprKind {
+        if qpath.qself.is_none() && self.check_punct(Punct::Bang) && qpath.path.has_no_args() {
+            let t1 = self.eat_punct(Punct::Bang).unwrap();
+            let L(t2, inner) = self.eat_delimited().unwrap();
+            ExprKind::Macro(MacroCall {
+                path: qpath.path,
+                t1,
+                bang: Token![!],
+                t2,
+                inner,
+            })
+        } else if allow_struct && self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
             ExprKind::Struct(self.parse_rest_of_struct(qpath))
         } else {
             ExprKind::QPath(qpath)
@@ -225,16 +348,15 @@ impl<'src> super::Parser<'src> {
         t0 << e
     }
 
-    fn parse_expr_if(&mut self) -> IfExpr {
+    fn parse_expr_if(&mut self) -> Option<L<IfExpr>> {
+        let t0 = self.eat_kw("if")?;
         let L(t1, cond) = self.parse_expr_inner(false);
         let L(t2, then) = self.parse_block();
         let else_ = if let Some(t3) = self.eat_kw("else") {
-            let L(t4, kind) = if let Some(t4) = self.eat_kw("if") {
-                let if_ = self.parse_expr_if();
-                t4 << ElseKind::ElseIf(Box::new(if_))
-            } else {
-                self.parse_block().map(ElseKind::Else)
-            };
+            let L(t4, kind) = self
+                .parse_expr_if()
+                .map(|x| x.map(Box::new).map(ElseKind::ElseIf))
+                .unwrap_or_else(|| self.parse_block().map(ElseKind::Else));
             Some(Else {
                 t3,
                 token: Token![else],
@@ -244,14 +366,16 @@ impl<'src> super::Parser<'src> {
         } else {
             None
         };
-        IfExpr {
-            token: Token![if],
-            t1,
-            cond: Box::new(cond),
-            t2,
-            then,
-            else_,
-        }
+        Some(
+            t0 << IfExpr {
+                token: Token![if],
+                t1,
+                cond: Box::new(cond),
+                t2,
+                then,
+                else_,
+            },
+        )
     }
 
     fn parse_expr_loop(&mut self) -> L<Loop> {

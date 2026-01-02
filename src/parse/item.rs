@@ -162,8 +162,7 @@ impl Parser<'_> {
             semi: Token![;],
         }
     }
-    pub fn parse_item(&mut self) -> (Trivia, Item) {
-        let attrs = self.parse_attrs(AttrKind::Outer);
+    pub(in super) fn parse_items_without_attrs(&mut self, attrs: Option<(Trivia, List<Attribute>)>) -> (Trivia, Item) {
         let vis = self.parse_vis();
         if let Some(tbeforemod) = self.eat_kw("mod") {
             let (t0, attrs, vis) = juggle_trivia(attrs, vis, tbeforemod);
@@ -203,5 +202,9 @@ impl Parser<'_> {
         } else {
             unimplemented!("{:?}", self.token)
         }
+    }
+    pub fn parse_item(&mut self) -> (Trivia, Item) {
+        let attrs = self.parse_attrs(AttrKind::Outer);
+        self.parse_items_without_attrs(attrs)
     }
 }

@@ -65,6 +65,8 @@ pub trait Pass {
         visit_qself(QSelf);
         visit_path(Path);
         visit_path_segment(PathSegment);
+        visit_path_segment_args(PathSegmentArgs);
+        visit_generic_arg(GenericArg);
         visit_ty(Ty);
         visit_ty_slice(TySlice);
         visit_ty_array(TyArray);
@@ -73,6 +75,9 @@ pub trait Pass {
         visit_expr_struct(ExprStruct);
         visit_expr_struct_fields(ExprStructFields);
         visit_expr_struct_field(ExprStructField);
+        visit_expr_tuple(ExprTuple);
+        visit_expr_paren(ExprParen);
+        visit_macro_call(MacroCall);
         visit_fn(Fn);
         visit_fn_param(FnParam);
         visit_fn_ret(FnRet);

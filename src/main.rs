@@ -1,9 +1,9 @@
-use sourcery::{Print, parse_to_tokenstream};
+use sourcery::Print;
 
 fn main() {
-    let src = " 'a";
-    let f = parse_to_tokenstream(src);
-    println!("{f:?}");
+    let src = " const X: i32 = (1);";
+    let f = sourcery::parse(src);
+    println!("{f:#?}");
     let mut s = String::new();
     f.print(&mut s);
     println!("{s}");

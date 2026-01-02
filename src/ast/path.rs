@@ -1,16 +1,33 @@
 use crate::prelude::*;
 
 #[derive(Debug, Print, Walk, Respace)]
-pub struct PathSegment {
-    pub ident: Ident,
+pub enum GenericArg {
+    Lifetime(Ident),
+    Type(Ty),
+    // todo: Const, AssocType, AssocConst, Bound
 }
 
-pub enum PathSegmentArguments {
+#[derive(Debug, Print, Walk, Respace)]
+pub struct PathSegment {
+    pub ident: Ident,
+    pub args: Option<L<PathSegmentArgs>>
+}
+
+#[derive(Debug, Print, Walk)]
+pub enum PathSegmentArgs {
     AngleBracketed {
         colon2: Option<L<Token![::]>>,
         t1: Trivia,
         lt: Token![<],
+        t2: Trivia,
+        args: SeparatedList<GenericArg, Token![,]>,
+        gt: Token![>],
+    }
+}
 
+impl Respace for L<PathSegmentArgs> {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
     }
 }
 
@@ -20,6 +37,12 @@ pub struct Path {
     pub seg1: PathSegment,
     // Not `List` because this one is self-contained (no trailing trivia)
     pub rest: Vec<(Trivia, Token![::], Trivia, PathSegment)>,
+}
+
+impl Path {
+    pub fn has_no_args(&self) -> bool {
+        self.seg1.args.is_none() && self.rest.iter().all(|(_, _, _, seg)| seg.args.is_none())
+    }
 }
 
 impl Respace for Path {
