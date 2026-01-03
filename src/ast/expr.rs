@@ -237,6 +237,24 @@ impl Respace for Brackets<ExprRepeat> {
     }
 }
 
+#[derive(Debug, Print, Walk)]
+pub struct ClosureArg {
+    pub attrs: List<Attribute>,
+    pub pat: Pat,
+    pub ty: Option<(Trivia, Token![:], Trivia, Ty)>,
+    pub comma: Option<(Trivia, Token![,])>,
+}
+
+pub struct Closure {
+    pub bar1: Token![|],
+    pub t1: Trivia,
+    pub args: List<ClosureArg>,
+    pub bar2: Token![|],
+    pub ret: Option<(Trivia, FnRet)>,
+    pub t2: Trivia,
+    pub body: Expr,
+}
+
 #[derive(Debug, Print, Walk, Respace)]
 pub struct Expr {
     pub attrs: List<Attribute>,

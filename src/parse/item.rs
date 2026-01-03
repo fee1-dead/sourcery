@@ -182,7 +182,7 @@ impl Parser<'_> {
             let kind = ItemKind::Fn(Fn {
                 vis,
                 kw: Token![fn],
-                t1,
+                t1: TriviaN::new(t1),
                 name,
                 t2,
                 params,

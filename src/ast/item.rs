@@ -97,7 +97,7 @@ pub struct FnRet {
 pub struct Fn {
     pub vis: Option<(Visibility, Trivia)>,
     pub kw: Token![fn],
-    pub t1: Trivia,
+    pub t1: TriviaN,
     pub name: Ident,
     pub t2: Trivia,
     pub params: Parens<(Trivia, List<FnParam>)>,
