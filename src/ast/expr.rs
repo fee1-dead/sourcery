@@ -12,6 +12,7 @@ pub enum ExprKind {
     While(While),
     For(For),
     Loop(Loop),
+    Match(Match),
     Break(Break),
     Continue(Continue),
     Return(Return),
@@ -24,6 +25,7 @@ pub enum ExprKind {
     Array(Brackets<TupleOrArrayContents>),
     Repeat(Brackets<ExprRepeat>),
     Macro(MacroCall),
+    Closure(Closure),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -125,6 +127,33 @@ pub struct Loop {
     #[sourcery(spaces = 1)]
     pub t1: Trivia,
     pub block: Block,
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct Arm {
+    pub attrs: List<Attribute>,
+    pub pat: Pat,
+    pub guard: Option<(Trivia, Token![if], Trivia, Box<Expr>)>,
+    pub t1: Trivia,
+    pub arrow: Token![=>],
+    pub t2: Trivia,
+    pub body: Box<Expr>,
+    pub comma: Option<(Trivia, Token![,])>,
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct Match {
+    pub token: Token![match],
+    pub t1: Trivia,
+    pub expr: Box<Expr>,
+    pub t2: Trivia,
+    pub arms: Braces<(Trivia, List<Arm>)>,
+}
+
+impl Respace for Match {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -245,6 +274,7 @@ pub struct ClosureArg {
     pub comma: Option<(Trivia, Token![,])>,
 }
 
+#[derive(Debug, Print, Walk)]
 pub struct Closure {
     pub bar1: Token![|],
     pub t1: Trivia,
@@ -252,7 +282,13 @@ pub struct Closure {
     pub bar2: Token![|],
     pub ret: Option<(Trivia, FnRet)>,
     pub t2: Trivia,
-    pub body: Expr,
+    pub body: Box<Expr>,
+}
+
+impl Respace for Closure {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
 }
 
 #[derive(Debug, Print, Walk, Respace)]

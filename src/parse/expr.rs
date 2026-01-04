@@ -31,11 +31,57 @@ impl<'src> super::Parser<'src> {
     fn parse_expr_inner(&mut self, allow_struct: bool) -> L<Expr> {
         let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
         let L(t1, kind) = self.parse_atom_expr(allow_struct);
+        // TODO audit every usage of this. It is not semantically correct but it sure is convenient
         attrs.push_trivia(t1);
         t0 << Expr { attrs, kind }
     }
+    fn choose_generics_over_qpath(&self) -> bool {
+        self.check_punct(Punct::Lt)
+            && (self.peek2(|tt| tt.is_punct(Punct::Gt))
+                || self.peek2(|tt| tt.is_punct(Punct::Pound))
+                || (self.peek2(|tt| matches!(tt, TokenTree::Lifetime(_) | TokenTree::Ident(_)))
+                    && self.peek3(|tt| {
+                        matches!(
+                            tt,
+                            TokenTree::Punct(Punct::Gt | Punct::Comma | Punct::Colon | Punct::Eq)
+                        )
+                    }))
+                || self.peek2(|tt| tt.is_ident("const")))
+    }
+    fn choose_generics_over_qpath_after_keyword(&self) -> bool {
+        let mut this = self.snapshot();
+        this.parse_ident();
+        this.choose_generics_over_qpath()
+    }
     fn parse_expr_with_earlier_boundary_rule(&mut self) -> L<Expr> {
-        todo!()
+        let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        // TODO audit every usage of this. It is not semantically correct but it sure is convenient
+        let L(t1, kind) = self
+            .parse_expr_if()
+            .or_else(|| self.parse_expr_while())
+            .or_else(|| {
+                (self.check_ident("for") && !self.choose_generics_over_qpath_after_keyword())
+                    .then(|| self.parse_expr_for())
+                    .flatten()
+            })
+            .or_else(|| self.parse_expr_loop())
+            // .or_else(|| self.parse_expr_match);
+            .or_else(|| self.parse_try_block())
+            .or_else(|| self.parse_unsafe_block())
+            .or_else(|| self.parse_const_block())
+            .unwrap_or_else(|| {
+                if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
+                    self.parse_block()
+                        .map(|block| ExprKind::Block(LabeledBlock { label: None, block }))
+                } else if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
+                    self.parse_labeled_atom_expr()
+                } else {
+                    self.parse_unary_expr(true)
+                }
+            });
+        // TODO continue parsing
+        attrs.push_trivia(t1);
+        t0 << Expr { attrs, kind }
     }
     fn parse_try_block(&mut self) -> Option<L<ExprKind>> {
         if self.check_ident("try") && self.peek2(|tt| tt.is_delim(Delimiter::Braces)) {
@@ -85,25 +131,39 @@ impl<'src> super::Parser<'src> {
     fn parse_array_or_repeat(&mut self) -> Option<L<ExprKind>> {
         self.eat_delim(Delimiter::Brackets, |t0, mut this| {
             if let Some(t1) = this.eat_eof() {
-                return t0 << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents: SeparatedList::new() }))
+                return t0
+                    << ExprKind::Array(Brackets(TupleOrArrayContents {
+                        t1,
+                        contents: SeparatedList::new(),
+                    }));
             }
             let L(t1, first) = this.parse_expr();
             if let Some(t2) = this.eat_punct(Punct::Semi) {
                 let L(t3, len) = this.parse_expr().map(Box::new);
                 let t4 = this.eat_eof().unwrap();
-                t0 << ExprKind::Repeat(Brackets(ExprRepeat { t1, elem: Box::new(first), t2, semi: Token![;], t3, len, t4 }))
+                t0 << ExprKind::Repeat(Brackets(ExprRepeat {
+                    t1,
+                    elem: Box::new(first),
+                    t2,
+                    semi: Token![;],
+                    t3,
+                    len,
+                    t4,
+                }))
             } else {
                 let mut contents = SeparatedList::new_single(first);
                 loop {
                     if let Some(tlast) = this.eat_eof() {
                         contents.push_trivia(tlast);
-                        break t0 << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }))
+                        break t0
+                            << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }));
                     }
                     let tnext = this.eat_punct(Punct::Comma).unwrap();
                     contents.push_sep(tnext, Token![,]);
                     if let Some(tlast) = this.eat_eof() {
                         contents.push_trivia(tlast);
-                        break t0 << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }))
+                        break t0
+                            << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }));
                     }
                     let L(tnext, x) = this.parse_expr();
                     contents.push_value(tnext, x);
@@ -111,8 +171,118 @@ impl<'src> super::Parser<'src> {
             }
         })
     }
+    fn parse_closure_arg(&mut self) -> L<ClosureArg> {
+        let (mut t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        let L(t0_5, pat) = self.parse_pat();
+        if attrs.is_empty() {
+            t0 = t0_5;
+        } else {
+            attrs.push_trivia(t0_5);
+        }
+        let ty = self.eat_punct(Punct::Colon).map(|t1| {
+            let L(t2, ty) = self.parse_ty();
+            (t1, Token![:], t2, ty)
+        });
+        let comma = self.eat_punct(Punct::Comma).map(|t| (t, Token![,]));
+        t0 << ClosureArg {
+            attrs,
+            pat,
+            ty,
+            comma,
+        }
+    }
+    fn parse_closure_args(&mut self) -> L<List<ClosureArg>> {
+        if self.check_punct(Punct::Or) {
+            return Trivia::default() << List::default();
+        }
+        let L(t0, arg) = self.parse_closure_arg();
+        let mut has_comma = arg.comma.is_some();
+        let mut list = List::single(arg);
+        loop {
+            if !has_comma || self.check_punct(Punct::Or) {
+                let tlast = self.eat_punct(Punct::Or).unwrap();
+                list.push_trivia(tlast);
+                break t0 << list;
+            }
+            let L(t, arg) = self.parse_closure_arg();
+            has_comma = arg.comma.is_some();
+            list.push(t, arg);
+        }
+    }
+    fn parse_closure(&mut self, allow_struct: bool) -> Option<L<Closure>> {
+        let t0 = self.eat_punct(Punct::Or)?;
+        let L(t1, args) = self.parse_closure_args();
+        let ret = self.parse_fn_ret();
+        let L(t2, body) = self.parse_expr_inner(allow_struct).map(Box::new);
+        Some(
+            t0 << Closure {
+                bar1: Token![|],
+                t1,
+                args,
+                bar2: Token![|],
+                ret,
+                t2,
+                body,
+            },
+        )
+    }
+    fn parse_arm(&mut self) -> L<Arm> {
+        let attrs = self.parse_attrs(AttrKind::Outer);
+        let L(t1, pat) = self.parse_multi_pat_with_leading_vert();
+        let (t0, attrs) = if let Some((t, mut l)) = attrs {
+            l.push_trivia(t1);
+            (t, l)
+        } else {
+            (t1, List::default())
+        };
+        let guard = if let Some(tbeforeif) = self.eat_kw("if") {
+            let L(t2, e) = self.parse_expr().map(Box::new);
+            Some((tbeforeif, Token![if], t2, e))
+        } else { None };
+        let t1 = self.eat_punct(Punct::RFatArrow).unwrap();
+        let L(t2, body) = self.parse_expr_inner(false).map(Box::new);
+        let comma = self.eat_punct(Punct::Comma).map(|t| (t, Token![,]));
+        t0 << Arm {
+            attrs, pat, guard, t1, arrow: Token![=>], t2, body, comma
+        }
+    }
+    fn parse_arms(&mut self) -> L<Braces<(Trivia, List<Arm>)>> {
+        self.eat_delim(Delimiter::Braces, |t0, mut this| {
+            if let Some(eof) = this.eat_eof() {
+                return t0 << Braces((eof, List::default()));
+            }
+            let L(t1, arm) = this.parse_arm();
+            let mut list = List::single(arm);
+            loop {
+                if let Some(eof) = this.eat_eof() {
+                    list.push_trivia(eof);
+                    break t0 << Braces((t1, list));
+                }
+                let L(t, arm) = this.parse_arm();
+                list.push(t, arm);
+            }
+        }).unwrap()
+    }
+    fn parse_expr_match(&mut self) -> Option<L<ExprKind>> {
+        let t0 = self.eat_kw("match")?;
+        let L(t1, expr) = self.parse_expr_inner(false).map(Box::new);
+        let L(t2, arms) = self.parse_arms();
+        Some(
+            t0 << ExprKind::Match(Match {
+                token: Token![match],
+                t1,
+                expr,
+                t2,
+                arms,
+            }),
+        )
+    }
+    fn parse_unary_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
+        // TODO
+        self.parse_atom_expr(allow_struct)
+    }
     fn parse_atom_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
-        // TODO: closures, builtin#, arrays/repeats, let, range, infer, match
+        // TODO: let, range
         if let Some(L(t, l)) = self.eat_literal() {
             t << ExprKind::Literal(l)
         } else if self.peek(|x| x.is_delim(Delimiter::Parens)) {
@@ -134,20 +304,22 @@ impl<'src> super::Parser<'src> {
             .parse_try_block()
             .or_else(|| self.parse_const_block())
             .or_else(|| self.parse_unsafe_block())
-            .or_else(|| self.parse_expr_if().map(|x| x.map(ExprKind::If)))
+            .or_else(|| self.parse_expr_if())
             .or_else(|| self.parse_array_or_repeat())
+            .or_else(|| {
+                self.parse_closure(allow_struct)
+                    .map(|x| x.map(ExprKind::Closure))
+            })
+            .or_else(|| self.parse_expr_while())
+            .or_else(|| self.parse_expr_for())
+            .or_else(|| self.parse_expr_loop())
+            .or_else(|| self.parse_expr_match())
         {
             e
         } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
             self.parse_block()
                 .map(|block| LabeledBlock { label: None, block })
                 .map(ExprKind::Block)
-        }else if self.check_ident("while") {
-            self.parse_expr_while().map(ExprKind::While)
-        } else if self.check_ident("for") {
-            self.parse_expr_for().map(ExprKind::For)
-        } else if self.check_ident("loop") {
-            self.parse_expr_loop().map(ExprKind::Loop)
         } else if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
             self.parse_labeled_atom_expr()
         } else if let Some(t) = self.eat_kw("break") {
@@ -354,17 +526,15 @@ impl<'src> super::Parser<'src> {
 
     fn parse_labeled_atom_expr(&mut self) -> L<ExprKind> {
         let L(t0, (lt, t1, colon)) = self.parse_label();
-        let L(t2, mut e) = if self.check_ident("while") {
-            self.parse_expr_while().map(ExprKind::While)
-        } else if self.check_ident("for") {
-            self.parse_expr_for().map(ExprKind::For)
-        } else if self.check_ident("loop") {
-            self.parse_expr_loop().map(ExprKind::Loop)
-        } else {
-            self.parse_block()
-                .map(|block| LabeledBlock { label: None, block })
-                .map(ExprKind::Block)
-        };
+        let L(t2, mut e) = self
+            .parse_expr_while()
+            .or_else(|| self.parse_expr_for())
+            .or_else(|| self.parse_expr_loop())
+            .unwrap_or_else(|| {
+                self.parse_block()
+                    .map(|block| LabeledBlock { label: None, block })
+                    .map(ExprKind::Block)
+            });
 
         match &mut e {
             ExprKind::Block(LabeledBlock { label, block: _ })
@@ -378,13 +548,13 @@ impl<'src> super::Parser<'src> {
         t0 << e
     }
 
-    fn parse_expr_if(&mut self) -> Option<L<IfExpr>> {
+    fn parse_expr_if_inner(&mut self) -> Option<L<IfExpr>> {
         let t0 = self.eat_kw("if")?;
         let L(t1, cond) = self.parse_expr_inner(false);
         let L(t2, then) = self.parse_block();
         let else_ = if let Some(t3) = self.eat_kw("else") {
             let L(t4, kind) = self
-                .parse_expr_if()
+                .parse_expr_if_inner()
                 .map(|x| x.map(Box::new).map(ElseKind::ElseIf))
                 .unwrap_or_else(|| self.parse_block().map(ElseKind::Else));
             Some(Else {
@@ -408,48 +578,58 @@ impl<'src> super::Parser<'src> {
         )
     }
 
-    fn parse_expr_loop(&mut self) -> L<Loop> {
-        let t0 = self.eat_kw("loop").unwrap();
-        let L(t1, block) = self.parse_block();
-        t0 << Loop {
-            label: None,
-            token: Token![loop],
-            t1,
-            block,
-        }
+    fn parse_expr_if(&mut self) -> Option<L<ExprKind>> {
+        self.parse_expr_if_inner().map(|x| x.map(ExprKind::If))
     }
 
-    fn parse_expr_for(&mut self) -> L<For> {
-        let t0 = self.eat_kw("for").unwrap();
+    fn parse_expr_loop(&mut self) -> Option<L<ExprKind>> {
+        let t0 = self.eat_kw("loop")?;
+        let L(t1, block) = self.parse_block();
+        Some(
+            t0 << ExprKind::Loop(Loop {
+                label: None,
+                token: Token![loop],
+                t1,
+                block,
+            }),
+        )
+    }
+
+    fn parse_expr_for(&mut self) -> Option<L<ExprKind>> {
+        let t0 = self.eat_kw("for")?;
         let L(t1, pat) = self.parse_pat();
         let t2 = self.eat_kw("in").unwrap();
         let L(t3, expr) = self.parse_expr_inner(false);
         let L(t4, block) = self.parse_block();
-        t0 << For {
-            label: None,
-            token: Token![for],
-            t1,
-            pat,
-            t2,
-            in_: Token![in],
-            t3,
-            expr: Box::new(expr),
-            t4,
-            block,
-        }
+        Some(
+            t0 << ExprKind::For(For {
+                label: None,
+                token: Token![for],
+                t1,
+                pat,
+                t2,
+                in_: Token![in],
+                t3,
+                expr: Box::new(expr),
+                t4,
+                block,
+            }),
+        )
     }
 
-    fn parse_expr_while(&mut self) -> L<While> {
-        let t0 = self.eat_kw("while").unwrap();
+    fn parse_expr_while(&mut self) -> Option<L<ExprKind>> {
+        let t0 = self.eat_kw("while")?;
         let L(t1, cond) = self.parse_expr_inner(false);
         let L(t2, then) = self.parse_block();
-        t0 << While {
-            label: None,
-            token: Token![while],
-            t1,
-            cond: Box::new(cond),
-            t2,
-            then,
-        }
+        Some(
+            t0 << ExprKind::While(While {
+                label: None,
+                token: Token![while],
+                t1,
+                cond: Box::new(cond),
+                t2,
+                then,
+            }),
+        )
     }
 }

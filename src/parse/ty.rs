@@ -5,7 +5,7 @@ impl<'src> super::Parser<'src> {
         if let Some(ty) = self.eat_delim(Delimiter::Brackets, |t0, mut this| {
             let L(t1, ty) = this.parse_ty();
             let kind = if let Some(t2) = this.eat_punct(Punct::Semi) {
-                let L(t3, len) = this.parse_expr();
+                let L(t3, len) = this.parse_expr().map(Box::new);
                 let tend = this.eat_eof().unwrap();
                 let arrayty = TyArray { t1, elem: Box::new(ty), t2, semi: Token!(;), t3, len, t4: tend };
                 Ty::Array(Brackets(arrayty))

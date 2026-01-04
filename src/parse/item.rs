@@ -61,7 +61,7 @@ impl Parser<'_> {
         .unwrap()
     }
 
-    fn parse_fn_ret(&mut self) -> Option<(Trivia, FnRet)> {
+    pub(super) fn parse_fn_ret(&mut self) -> Option<(Trivia, FnRet)> {
         let t1 = self.eat_punct(Punct::RThinArrow)?;
         let L(t2_5, ty) = self.parse_ty();
         Some((

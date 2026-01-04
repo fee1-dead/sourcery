@@ -73,7 +73,6 @@ Parsing & AST:
 - [ ] [Expressions](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_ast/ast/enum.ExprKind.html)
     - [x] Arrays and array repeats
     - [x] Blocks: normal, unsafe, const, async, try
-    - [ ] Gen block
     - [ ] Calls
     - [x] Tuples
     - [x] Paren
@@ -87,21 +86,23 @@ Parsing & AST:
     - [x] For loops
     - [x] Loops
     - [ ] Matches
-    - [ ] Closures
+    - [x] Closures
     - [x] Blocks
-    - [ ] Use expression
     - [ ] AssignOp
     - [ ] Fields
     - [ ] Indexing
     - [ ] Ranges
-    - [ ] Underscores
+    - [x] Underscores
     - [x] Paths
     - [ ] References
     - [x] Breaks/Continue/returns/Yields/Becomes
-    - [ ] Yeets
     - [x] Macros
     - [x] Structs
     - [ ] Try (`x?`)
+- Nightly expressions
+    - [ ] Gen block
+    - [ ] Use expression
+    - [ ] Yeets
 - [ ] Statements
     - [ ] Lets
     - [ ] Items

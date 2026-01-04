@@ -14,7 +14,7 @@ pub struct TyArray {
     pub semi: Token![;],
     #[sourcery(spaces = 1)]
     pub t3: Trivia,
-    pub len: Expr,
+    pub len: Box<Expr>,
     #[sourcery(spaces = 0)]
     pub t4: Trivia,
 }

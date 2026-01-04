@@ -69,6 +69,10 @@ impl<T> List<T> {
         l
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty() && self.tlast.is_empty()
+    }
+
     fn optimize(&mut self) {
         if let Some((_, t)) = self.inner.last_mut() {
             t.extend(self.tlast.take())

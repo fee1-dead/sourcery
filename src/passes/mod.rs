@@ -72,6 +72,8 @@ pub trait Pass {
         visit_ty_array(TyArray);
         visit_expr(Expr);
         visit_expr_kind(ExprKind);
+        visit_expr_match(Match);
+        visit_arm(Arm);
         visit_expr_struct(ExprStruct);
         visit_expr_struct_fields(ExprStructFields);
         visit_expr_struct_field(ExprStructField);
@@ -79,6 +81,8 @@ pub trait Pass {
         visit_expr_repeat(ExprRepeat);
         visit_expr_paren(ExprParen);
         visit_macro_call(MacroCall);
+        visit_closure(Closure);
+        visit_closure_arg(ClosureArg);
         visit_fn(Fn);
         visit_fn_param(FnParam);
         visit_fn_ret(FnRet);
