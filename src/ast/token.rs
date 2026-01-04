@@ -294,7 +294,7 @@ define_tokens! {
     keywords(
         Mod(mod), Pub(pub), In(in), Type(type), Fn(fn), Const(const), Static(static), Unsafe(unsafe), Async(async),
         Try(try), As(as), If(if), Else(else), While(while), Loop(loop), For(for), Match(match), Break(break), Continue(continue),
-        Return(return), Yield(yield), Become(become),
+        Return(return), Yield(yield), Become(become), Let(let),
     );
     tokens(
         Semi(;),

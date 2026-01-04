@@ -96,7 +96,7 @@ impl<'src> super::Parser<'src> {
                 } else if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
                     self.parse_labeled_atom_expr()
                 } else {
-                    self.parse_unary_expr(true)
+                    self.parse_unary_expr_kind(true)
                 }
             });
         // TODO continue parsing
@@ -147,6 +147,29 @@ impl<'src> super::Parser<'src> {
         } else {
             None
         }
+    }
+    fn parse_expr_let(&mut self, allow_struct: bool) -> Option<L<ExprKind>> {
+        let t0 = self.eat_kw("let")?;
+        let L(t1, pat) = self.parse_multi_pat_with_leading_vert().map(Box::new);
+        let t2 = self.eat_punct(Punct::Eq).unwrap();
+        let L(t3, expr) = self
+            .parse_unary_expr(allow_struct)
+            .map(|mut exp| {
+                exp.kind = self.parse_expr_finish(exp.kind, allow_struct, Precedence::Compare);
+                exp
+            })
+            .map(Box::new);
+        Some(
+            t0 << ExprKind::Let(ExprLet {
+                token: Token![let],
+                t1,
+                pat,
+                t2,
+                eq: Token![=],
+                t3,
+                expr,
+            }),
+        )
     }
     fn parse_array_or_repeat(&mut self) -> Option<L<ExprKind>> {
         self.eat_delim(Delimiter::Brackets, |t0, mut this| {
@@ -258,12 +281,21 @@ impl<'src> super::Parser<'src> {
         let guard = if let Some(tbeforeif) = self.eat_kw("if") {
             let L(t2, e) = self.parse_expr().map(Box::new);
             Some((tbeforeif, Token![if], t2, e))
-        } else { None };
+        } else {
+            None
+        };
         let t1 = self.eat_punct(Punct::RFatArrow).unwrap();
         let L(t2, body) = self.parse_expr_with_earlier_boundary_rule().map(Box::new);
         let comma = self.eat_punct(Punct::Comma).map(|t| (t, Token![,]));
         t0 << Arm {
-            attrs, pat, guard, t1, arrow: Token![=>], t2, body, comma
+            attrs,
+            pat,
+            guard,
+            t1,
+            arrow: Token![=>],
+            t2,
+            body,
+            comma,
         }
     }
     fn parse_arms(&mut self) -> L<Braces<(Trivia, List<Arm>)>> {
@@ -281,7 +313,8 @@ impl<'src> super::Parser<'src> {
                 let L(t, arm) = this.parse_arm();
                 list.push(t, arm);
             }
-        }).unwrap()
+        })
+        .unwrap()
     }
     fn parse_expr_match(&mut self) -> Option<L<ExprKind>> {
         let t0 = self.eat_kw("match")?;
@@ -297,16 +330,55 @@ impl<'src> super::Parser<'src> {
             }),
         )
     }
-    fn parse_expr_finish(&mut self, lhs: Expr, allow_struct: bool, base: Precedence) -> Expr {
+    fn parse_expr_finish(
+        &mut self,
+        lhs: ExprKind,
+        allow_struct: bool,
+        base: Precedence,
+    ) -> ExprKind {
+        #![allow(unused_variables)]
         // TODO
         lhs
     }
-    fn parse_unary_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
+
+    fn parse_binop_rhs(&mut self, allow_struct: bool, precedence: Precedence) -> L<Box<Expr>> {
+        #![allow(unused_variables)]
+        // TODO
+        self.parse_unary_expr(allow_struct).map(Box::new)
+    }
+
+    fn parse_expr_range_end(
+        &mut self,
+        limits: &RangeLimits,
+        allow_struct: bool,
+    ) -> Option<L<Box<Expr>>> {
+        use Punct::*;
+        if matches!(limits, RangeLimits::HalfOpen(_))
+            && (self.check_eof()
+                || self.peek(|tt| {
+                    matches!(
+                        tt,
+                        TokenTree::Punct(Comma | Semi | Dot | Question | RFatArrow | Eq | EqEq | Plus | PlusEq | Slash | SlashEq | Percent | PercentEq | Caret | CaretEq | Gt | GtEq | GtGtEq | LtEq | LtLtEq | BangEq | MinusEq | StarEq | AndEq | OrEq)
+                    ) || tt.is_ident("as") || (!allow_struct && tt.is_delim(Delimiter::Braces))
+                }))
+        {
+            return None;
+        }
+
+        Some(self.parse_binop_rhs(allow_struct, Precedence::Range))
+    }
+    fn parse_unary_expr(&mut self, allow_struct: bool) -> L<Expr> {
+        let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        let L(t1, kind) = self.parse_atom_expr(allow_struct);
+        // TODO audit every usage of this. It is not semantically correct but it sure is convenient
+        attrs.push_trivia(t1);
+        t0 << Expr { attrs, kind }
+    }
+    fn parse_unary_expr_kind(&mut self, allow_struct: bool) -> L<ExprKind> {
         // TODO
         self.parse_atom_expr(allow_struct)
     }
     fn parse_atom_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
-        // TODO: let, range
         if let Some(L(t, l)) = self.eat_literal() {
             t << ExprKind::Literal(l)
         } else if self.peek(|x| x.is_delim(Delimiter::Parens)) {
@@ -338,6 +410,8 @@ impl<'src> super::Parser<'src> {
             .or_else(|| self.parse_expr_for())
             .or_else(|| self.parse_expr_loop())
             .or_else(|| self.parse_expr_match())
+            .or_else(|| self.parse_expr_let(allow_struct))
+            .or_else(|| self.parse_expr_range_to(allow_struct))
         {
             e
         } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
@@ -655,5 +729,14 @@ impl<'src> super::Parser<'src> {
                 then,
             }),
         )
+    }
+
+    fn parse_expr_range_to(&mut self, allow_struct: bool) -> Option<L<ExprKind>> {
+        let (tprev, limits) = self
+            .eat_punct(Punct::DotDot).map(|t| (t, RangeLimits::Closed(Token![..])))
+            .or_else(|| self.eat_punct(Punct::DotDotEq).map(|t| (t, RangeLimits::HalfOpen(Token![..=]))))?;
+        
+        let end = self.parse_expr_range_end(&limits, allow_struct);
+        Some(tprev << ExprKind::Range(ExprRange { start: None, limits, end }))
     }
 }

@@ -18,6 +18,7 @@ pub enum ExprKind {
     Return(Return),
     Yield(Yield),
     Become(Become),
+    Let(ExprLet),
     QPath(QPath),
     Struct(ExprStruct),
     Tuple(Parens<TupleOrArrayContents>),
@@ -26,6 +27,7 @@ pub enum ExprKind {
     Repeat(Brackets<ExprRepeat>),
     Macro(MacroCall),
     Closure(Closure),
+    Range(ExprRange),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -189,6 +191,20 @@ pub struct Become {
     pub expr: Box<Expr>,
 }
 
+#[derive(Debug, Print, Walk, Respace)]
+pub struct ExprLet {
+    pub token: Token![let],
+    #[sourcery(spaces = 1)]
+    pub t1: Trivia,
+    pub pat: Box<Pat>,
+    #[sourcery(spaces = 1)]
+    pub t2: Trivia,
+    pub eq: Token![=],
+    #[sourcery(spaces = 1)]
+    pub t3: Trivia,
+    pub expr: Box<Expr>
+}
+
 #[derive(Debug, Print, Walk)]
 pub struct ExprStructField {
     pub attrs: List<Attribute>,
@@ -286,6 +302,25 @@ pub struct Closure {
 }
 
 impl Respace for Closure {
+    fn respace(&mut self, _: &mut Spaces) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Print, Walk)]
+pub enum RangeLimits {
+    HalfOpen(Token![..=]),
+    Closed(Token![..]),
+}
+
+#[derive(Debug, Print, Walk)]
+pub struct ExprRange {
+    pub start: Option<(Box<Expr>, Trivia) >,
+    pub limits: RangeLimits,
+    pub end: Option<L<Box<Expr>>>,
+}
+
+impl Respace for ExprRange {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }

@@ -82,10 +82,10 @@ Parsing & AST:
     - [ ] Casts
     - [x] Ifs
     - [x] Whiles
-    - [ ] Lets (in ifs and whiles)
+    - [x] Lets (in ifs and whiles)
     - [x] For loops
     - [x] Loops
-    - [ ] Matches
+    - [x] Matches
     - [x] Closures
     - [x] Blocks
     - [ ] AssignOp
