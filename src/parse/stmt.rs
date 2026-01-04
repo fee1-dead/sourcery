@@ -8,7 +8,7 @@ impl<'src> Parser<'src> {
             attrs.push_trivia(trivia);
             StmtKind::Empty(Token![;])
         } else {
-            let L(t1, expr) = self.parse_expr();
+            let L(t1, expr) = self.parse_expr_with_earlier_boundary_rule();
             attrs.push_trivia(t1);
             if let Some(t2) = self.eat_punct(Punct::Semi) {
                 StmtKind::Semi(expr, t2, Token![;])

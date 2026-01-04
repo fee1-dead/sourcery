@@ -1,6 +1,26 @@
 use crate::parse::attr::AttrKind;
 use crate::prelude::*;
 
+#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub enum Precedence {
+    Assign,
+    Range,
+    Or,
+    And,
+    Compare,
+    BitOr,
+    BitXor,
+    BitAnd,
+    Shift,
+    Sum,
+    Product,
+    Cast,
+}
+
+impl Precedence {
+    pub const MIN: Precedence = Precedence::Assign;
+}
+
 impl<'src> super::Parser<'src> {
     pub fn parse_expr(&mut self) -> L<Expr> {
         self.parse_expr_inner(true)
@@ -53,7 +73,7 @@ impl<'src> super::Parser<'src> {
         this.parse_ident();
         this.choose_generics_over_qpath()
     }
-    fn parse_expr_with_earlier_boundary_rule(&mut self) -> L<Expr> {
+    pub(super) fn parse_expr_with_earlier_boundary_rule(&mut self) -> L<Expr> {
         let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
         // TODO audit every usage of this. It is not semantically correct but it sure is convenient
         let L(t1, kind) = self
@@ -240,7 +260,7 @@ impl<'src> super::Parser<'src> {
             Some((tbeforeif, Token![if], t2, e))
         } else { None };
         let t1 = self.eat_punct(Punct::RFatArrow).unwrap();
-        let L(t2, body) = self.parse_expr_inner(false).map(Box::new);
+        let L(t2, body) = self.parse_expr_with_earlier_boundary_rule().map(Box::new);
         let comma = self.eat_punct(Punct::Comma).map(|t| (t, Token![,]));
         t0 << Arm {
             attrs, pat, guard, t1, arrow: Token![=>], t2, body, comma
@@ -276,6 +296,10 @@ impl<'src> super::Parser<'src> {
                 arms,
             }),
         )
+    }
+    fn parse_expr_finish(&mut self, lhs: Expr, allow_struct: bool, base: Precedence) -> Expr {
+        // TODO
+        lhs
     }
     fn parse_unary_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
         // TODO

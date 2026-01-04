@@ -1,7 +1,7 @@
 pub mod ast;
 mod lex;
 pub(crate) use lex::Lexer;
-mod parse;
+pub mod parse;
 pub mod passes;
 mod print;
 

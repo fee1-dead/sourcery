@@ -14,6 +14,7 @@ mod pat;
 mod path;
 mod stmt;
 mod ty;
+pub use expr::Precedence;
 
 #[derive(Default, Clone, Debug, Print, Walk)]
 pub struct TokenStream {
