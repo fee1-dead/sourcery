@@ -1,3 +1,5 @@
+use smol_str::SmolStr;
+
 use crate::parse::attr::AttrKind;
 use crate::prelude::*;
 
@@ -175,7 +177,7 @@ impl<'src> super::Parser<'src> {
         self.eat_delim(Delimiter::Brackets, |t0, mut this| {
             if let Some(t1) = this.eat_eof() {
                 return t0
-                    << ExprKind::Array(Brackets(TupleOrArrayContents {
+                    << ExprKind::Array(Brackets(CommaSepExprs {
                         t1,
                         contents: SeparatedList::new(),
                     }));
@@ -198,15 +200,13 @@ impl<'src> super::Parser<'src> {
                 loop {
                     if let Some(tlast) = this.eat_eof() {
                         contents.push_trivia(tlast);
-                        break t0
-                            << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }));
+                        break t0 << ExprKind::Array(Brackets(CommaSepExprs { t1, contents }));
                     }
                     let tnext = this.eat_punct(Punct::Comma).unwrap();
                     contents.push_sep(tnext, Token![,]);
                     if let Some(tlast) = this.eat_eof() {
                         contents.push_trivia(tlast);
-                        break t0
-                            << ExprKind::Array(Brackets(TupleOrArrayContents { t1, contents }));
+                        break t0 << ExprKind::Array(Brackets(CommaSepExprs { t1, contents }));
                     }
                     let L(tnext, x) = this.parse_expr();
                     contents.push_value(tnext, x);
@@ -330,22 +330,6 @@ impl<'src> super::Parser<'src> {
             }),
         )
     }
-    fn parse_expr_finish(
-        &mut self,
-        lhs: ExprKind,
-        allow_struct: bool,
-        base: Precedence,
-    ) -> ExprKind {
-        #![allow(unused_variables)]
-        // TODO
-        lhs
-    }
-
-    fn parse_binop_rhs(&mut self, allow_struct: bool, precedence: Precedence) -> L<Box<Expr>> {
-        #![allow(unused_variables)]
-        // TODO
-        self.parse_unary_expr(allow_struct).map(Box::new)
-    }
 
     fn parse_expr_range_end(
         &mut self,
@@ -358,8 +342,35 @@ impl<'src> super::Parser<'src> {
                 || self.peek(|tt| {
                     matches!(
                         tt,
-                        TokenTree::Punct(Comma | Semi | Dot | Question | RFatArrow | Eq | EqEq | Plus | PlusEq | Slash | SlashEq | Percent | PercentEq | Caret | CaretEq | Gt | GtEq | GtGtEq | LtEq | LtLtEq | BangEq | MinusEq | StarEq | AndEq | OrEq)
-                    ) || tt.is_ident("as") || (!allow_struct && tt.is_delim(Delimiter::Braces))
+                        TokenTree::Punct(
+                            Comma
+                                | Semi
+                                | Dot
+                                | Question
+                                | RFatArrow
+                                | Eq
+                                | EqEq
+                                | Plus
+                                | PlusEq
+                                | Slash
+                                | SlashEq
+                                | Percent
+                                | PercentEq
+                                | Caret
+                                | CaretEq
+                                | Gt
+                                | GtEq
+                                | GtGtEq
+                                | LtEq
+                                | LtLtEq
+                                | BangEq
+                                | MinusEq
+                                | StarEq
+                                | AndEq
+                                | OrEq
+                        )
+                    ) || tt.is_ident("as")
+                        || (!allow_struct && tt.is_delim(Delimiter::Braces))
                 }))
         {
             return None;
@@ -367,131 +378,13 @@ impl<'src> super::Parser<'src> {
 
         Some(self.parse_binop_rhs(allow_struct, Precedence::Range))
     }
-    fn parse_unary_expr(&mut self, allow_struct: bool) -> L<Expr> {
-        let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
-        let L(t1, kind) = self.parse_atom_expr(allow_struct);
-        // TODO audit every usage of this. It is not semantically correct but it sure is convenient
-        attrs.push_trivia(t1);
-        t0 << Expr { attrs, kind }
-    }
-    fn parse_unary_expr_kind(&mut self, allow_struct: bool) -> L<ExprKind> {
-        // TODO
-        self.parse_atom_expr(allow_struct)
-    }
-    fn parse_atom_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
-        if let Some(L(t, l)) = self.eat_literal() {
-            t << ExprKind::Literal(l)
-        } else if self.peek(|x| x.is_delim(Delimiter::Parens)) {
-            self.parse_paren_or_tuple()
-        } else if self.check_ident("async")
-            && self.peek2(|tt| {
-                tt.is_delim(Delimiter::Braces)
-                    || (tt.is_ident("move") && self.peek3(|tt| tt.is_delim(Delimiter::Braces)))
-            })
-        {
-            let t = self.eat_ident("async").unwrap().0;
-            let L(t1, block) = self.parse_block();
-            t << ExprKind::AsyncBlock(AsyncBlock {
-                token: Token![async],
-                t1,
-                block,
-            })
-        } else if let Some(e) = self
-            .parse_try_block()
-            .or_else(|| self.parse_const_block())
-            .or_else(|| self.parse_unsafe_block())
-            .or_else(|| self.parse_expr_if())
-            .or_else(|| self.parse_array_or_repeat())
-            .or_else(|| {
-                self.parse_closure(allow_struct)
-                    .map(|x| x.map(ExprKind::Closure))
-            })
-            .or_else(|| self.parse_expr_while())
-            .or_else(|| self.parse_expr_for())
-            .or_else(|| self.parse_expr_loop())
-            .or_else(|| self.parse_expr_match())
-            .or_else(|| self.parse_expr_let(allow_struct))
-            .or_else(|| self.parse_expr_range_to(allow_struct))
-        {
-            e
-        } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
-            self.parse_block()
-                .map(|block| LabeledBlock { label: None, block })
-                .map(ExprKind::Block)
-        } else if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
-            self.parse_labeled_atom_expr()
-        } else if let Some(t) = self.eat_kw("break") {
-            let label = if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
-                Some(self.bump().map(|t| t.into_lifetime().unwrap()))
-            } else {
-                None
-            };
-            let expr = if self.peek_expr()
-                && (allow_struct || !self.peek(|t| t.is_delim(Delimiter::Braces)))
-            {
-                Some(self.parse_expr().map(Box::new))
-            } else {
-                None
-            };
-
-            t << ExprKind::Break(Break {
-                token: Token![break],
-                label,
-                expr,
-            })
-        } else if let Some(t) = self.eat_kw("continue") {
-            let label = if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
-                Some(self.bump().map(|t| t.into_lifetime().unwrap()))
-            } else {
-                None
-            };
-
-            t << ExprKind::Continue(Continue {
-                token: Token![continue],
-                label,
-            })
-        } else if let Some(t) = self.eat_kw("return") {
-            let expr = if self.peek_expr() {
-                Some(self.parse_expr().map(Box::new))
-            } else {
-                None
-            };
-
-            t << ExprKind::Return(Return {
-                token: Token![return],
-                expr,
-            })
-        } else if let Some(t) = self.eat_kw("yield") {
-            let expr = if self.peek_expr() {
-                Some(self.parse_expr().map(Box::new))
-            } else {
-                None
-            };
-
-            t << ExprKind::Yield(Yield {
-                token: Token![yield],
-                expr,
-            })
-        } else if let Some(t) = self.eat_kw("become") {
-            let L(t1, expr) = self.parse_expr().map(Box::new);
-            t << ExprKind::Become(Become {
-                token: Token![become],
-                t1,
-                expr,
-            })
-        } else {
-            let L(t, qpath) = self.parse_qpath();
-            t << self.parse_rest_of_path_or_macro_or_struct(qpath, allow_struct)
-        }
-    }
-
     fn parse_paren_or_tuple(&mut self) -> L<ExprKind> {
         self.eat_delim(Delimiter::Parens, |t0, mut this| {
             if let Some(tlast) = this.eat_eof() {
                 let mut list = SeparatedList::new();
                 list.push_trivia(tlast);
                 return t0
-                    << ExprKind::Tuple(Parens(TupleOrArrayContents {
+                    << ExprKind::Tuple(Parens(CommaSepExprs {
                         t1: Trivia::default(),
                         contents: list,
                     }));
@@ -520,7 +413,7 @@ impl<'src> super::Parser<'src> {
             };
             elems.push_trivia(tlast);
 
-            t0 << ExprKind::Tuple(Parens(TupleOrArrayContents {
+            t0 << ExprKind::Tuple(Parens(CommaSepExprs {
                 t1,
                 contents: elems,
             }))
@@ -733,10 +626,211 @@ impl<'src> super::Parser<'src> {
 
     fn parse_expr_range_to(&mut self, allow_struct: bool) -> Option<L<ExprKind>> {
         let (tprev, limits) = self
-            .eat_punct(Punct::DotDot).map(|t| (t, RangeLimits::Closed(Token![..])))
-            .or_else(|| self.eat_punct(Punct::DotDotEq).map(|t| (t, RangeLimits::HalfOpen(Token![..=]))))?;
-        
+            .eat_punct(Punct::DotDot)
+            .map(|t| (t, RangeLimits::Closed(Token![..])))
+            .or_else(|| {
+                self.eat_punct(Punct::DotDotEq)
+                    .map(|t| (t, RangeLimits::HalfOpen(Token![..=])))
+            })?;
+
         let end = self.parse_expr_range_end(&limits, allow_struct);
-        Some(tprev << ExprKind::Range(ExprRange { start: None, limits, end }))
+        Some(
+            tprev
+                << ExprKind::Range(ExprRange {
+                    start: None,
+                    limits,
+                    end,
+                }),
+        )
+    }
+    fn parse_atom_expr(&mut self, allow_struct: bool) -> L<ExprKind> {
+        if let Some(L(t, l)) = self.eat_literal() {
+            t << ExprKind::Literal(l)
+        } else if self.peek(|x| x.is_delim(Delimiter::Parens)) {
+            self.parse_paren_or_tuple()
+        } else if self.check_ident("async")
+            && self.peek2(|tt| {
+                tt.is_delim(Delimiter::Braces)
+                    || (tt.is_ident("move") && self.peek3(|tt| tt.is_delim(Delimiter::Braces)))
+            })
+        {
+            let t = self.eat_ident("async").unwrap().0;
+            let L(t1, block) = self.parse_block();
+            t << ExprKind::AsyncBlock(AsyncBlock {
+                token: Token![async],
+                t1,
+                block,
+            })
+        } else if let Some(e) = self
+            .parse_try_block()
+            .or_else(|| self.parse_const_block())
+            .or_else(|| self.parse_unsafe_block())
+            .or_else(|| self.parse_expr_if())
+            .or_else(|| self.parse_array_or_repeat())
+            .or_else(|| {
+                self.parse_closure(allow_struct)
+                    .map(|x| x.map(ExprKind::Closure))
+            })
+            .or_else(|| self.parse_expr_while())
+            .or_else(|| self.parse_expr_for())
+            .or_else(|| self.parse_expr_loop())
+            .or_else(|| self.parse_expr_match())
+            .or_else(|| self.parse_expr_let(allow_struct))
+            .or_else(|| self.parse_expr_range_to(allow_struct))
+        {
+            e
+        } else if self.peek(|tt| tt.is_delim(Delimiter::Braces)) {
+            self.parse_block()
+                .map(|block| LabeledBlock { label: None, block })
+                .map(ExprKind::Block)
+        } else if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
+            self.parse_labeled_atom_expr()
+        } else if let Some(t) = self.eat_kw("break") {
+            let label = if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
+                Some(self.bump().map(|t| t.into_lifetime().unwrap()))
+            } else {
+                None
+            };
+            let expr = if self.peek_expr()
+                && (allow_struct || !self.peek(|t| t.is_delim(Delimiter::Braces)))
+            {
+                Some(self.parse_expr().map(Box::new))
+            } else {
+                None
+            };
+
+            t << ExprKind::Break(Break {
+                token: Token![break],
+                label,
+                expr,
+            })
+        } else if let Some(t) = self.eat_kw("continue") {
+            let label = if self.peek(|tt| matches!(tt, TokenTree::Lifetime(_))) {
+                Some(self.bump().map(|t| t.into_lifetime().unwrap()))
+            } else {
+                None
+            };
+
+            t << ExprKind::Continue(Continue {
+                token: Token![continue],
+                label,
+            })
+        } else if let Some(t) = self.eat_kw("return") {
+            let expr = if self.peek_expr() {
+                Some(self.parse_expr().map(Box::new))
+            } else {
+                None
+            };
+
+            t << ExprKind::Return(Return {
+                token: Token![return],
+                expr,
+            })
+        } else if let Some(t) = self.eat_kw("yield") {
+            let expr = if self.peek_expr() {
+                Some(self.parse_expr().map(Box::new))
+            } else {
+                None
+            };
+
+            t << ExprKind::Yield(Yield {
+                token: Token![yield],
+                expr,
+            })
+        } else if let Some(t) = self.eat_kw("become") {
+            let L(t1, expr) = self.parse_expr().map(Box::new);
+            t << ExprKind::Become(Become {
+                token: Token![become],
+                t1,
+                expr,
+            })
+        } else {
+            let L(t, qpath) = self.parse_qpath();
+            t << self.parse_rest_of_path_or_macro_or_struct(qpath, allow_struct)
+        }
+    }
+
+    // <atom> (..<args>) ...
+    // <atom> . <ident> (..<args>) ...
+    // <atom> . <ident> ...
+    // <atom> . <lit> ...
+    // <atom> [ <expr> ] ...
+    // <atom> ? ...
+    fn parse_trailer_expr(&mut self, mut e: ExprKind) -> ExprKind {
+        loop {
+            if self.peek(|tt| tt.is_delim(Delimiter::Parens)) {
+                e = self
+                    .eat_delim(Delimiter::Parens, |t0, mut this| {
+                        if let Some(eof) = this.eat_eof() {
+                            return ExprCall {
+                                callee: Box::new(e),
+                                t0,
+                                args: Parens(CommaSepExprs {
+                                    t1: eof,
+                                    contents: SeparatedList::new(),
+                                }),
+                            };
+                        }
+
+                        let L(t1, mut list) = this.parse_expr().map(SeparatedList::new_single);
+                        loop {
+                            if let Some(eof) = this.eat_eof() {
+                                list.push_trivia(eof);
+                                return ExprCall {
+                                    callee: Box::new(e),
+                                    t0,
+                                    args: Parens(CommaSepExprs { t1, contents: list }),
+                                };
+                            }
+                            let t = this.eat_punct(Punct::Comma).unwrap();
+                            list.push_sep(t, Token![,]);
+                            if let Some(eof) = this.eat_eof() {
+                                list.push_trivia(eof);
+                                return ExprCall {
+                                    callee: Box::new(e),
+                                    t0,
+                                    args: Parens(CommaSepExprs { t1, contents: list }),
+                                };
+                            }
+                            let L(t, x) = this.parse_expr();
+                            list.push_value(t, x);
+                        }
+                    })
+                    .map(ExprKind::Call)
+                    .unwrap();
+            } else if !matches!(e, ExprKind::Range(_)) && self.check_punct(Punct::Dot) {
+                let t0 = self.eat_punct(Punct::Dot).unwrap();
+
+            } else {
+                break e;
+            }
+        }
+    }
+    fn parse_unary_expr(&mut self, allow_struct: bool) -> L<Expr> {
+        let (t0, mut attrs) = self.parse_attrs(AttrKind::Outer).unwrap_or_default();
+        let L(t1, kind) = self.parse_atom_expr(allow_struct);
+        // TODO audit every usage of this. It is not semantically correct but it sure is convenient
+        attrs.push_trivia(t1);
+        t0 << Expr { attrs, kind }
+    }
+    fn parse_unary_expr_kind(&mut self, allow_struct: bool) -> L<ExprKind> {
+        // TODO
+        self.parse_atom_expr(allow_struct)
+    }
+    fn parse_expr_finish(
+        &mut self,
+        lhs: ExprKind,
+        allow_struct: bool,
+        base: Precedence,
+    ) -> ExprKind {
+        #![allow(unused_variables)]
+        // TODO
+        lhs
+    }
+
+    fn parse_binop_rhs(&mut self, allow_struct: bool, precedence: Precedence) -> L<Box<Expr>> {
+        #![allow(unused_variables)]
+        // TODO
+        self.parse_unary_expr(allow_struct).map(Box::new)
     }
 }

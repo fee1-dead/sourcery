@@ -21,13 +21,14 @@ pub enum ExprKind {
     Let(ExprLet),
     QPath(QPath),
     Struct(ExprStruct),
-    Tuple(Parens<TupleOrArrayContents>),
+    Tuple(Parens<CommaSepExprs>),
     Paren(Parens<ExprParen>),
-    Array(Brackets<TupleOrArrayContents>),
+    Array(Brackets<CommaSepExprs>),
     Repeat(Brackets<ExprRepeat>),
     Macro(MacroCall),
     Closure(Closure),
     Range(ExprRange),
+    Call(ExprCall),
 }
 
 #[derive(Debug, Print, Walk, Respace)]
@@ -235,7 +236,7 @@ impl Respace for ExprStruct {
 }
 
 #[derive(Debug, Print, Walk)]
-pub struct TupleOrArrayContents {
+pub struct CommaSepExprs {
     pub t1: Trivia,
     pub contents: SeparatedList<Expr, Token![,]>,
 }
@@ -258,13 +259,13 @@ pub struct ExprRepeat {
     pub t4: Trivia,
 }
 
-impl Respace for Parens<TupleOrArrayContents> {
+impl Respace for Parens<CommaSepExprs> {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }
 }
  
-impl Respace for Brackets<TupleOrArrayContents> {
+impl Respace for Brackets<CommaSepExprs> {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }
@@ -315,7 +316,7 @@ pub enum RangeLimits {
 
 #[derive(Debug, Print, Walk)]
 pub struct ExprRange {
-    pub start: Option<(Box<Expr>, Trivia) >,
+    pub start: Option<(Box<Expr>, Trivia)>,
     pub limits: RangeLimits,
     pub end: Option<L<Box<Expr>>>,
 }
@@ -324,6 +325,14 @@ impl Respace for ExprRange {
     fn respace(&mut self, _: &mut Spaces) {
         todo!()
     }
+}
+
+#[derive(Debug, Print, Walk, Respace)]
+pub struct ExprCall {
+    pub callee: Box<ExprKind>,
+    #[sourcery(spaces = 1)]
+    pub t0: Trivia,
+    pub args: Parens<CommaSepExprs>,
 }
 
 #[derive(Debug, Print, Walk, Respace)]

@@ -72,13 +72,19 @@ impl<'src> Gluer<'src> {
             } => TokenTree::Lifetime(Ident(s)),
             TokenKind::RawLifetime => TokenTree::RawLifetime(Ident(s)),
             TokenKind::Literal {
-                kind: _,
+                kind,
                 suffix_start,
             } => {
+                use ra_ap_rustc_lexer::LiteralKind as K;
+                let kind = match kind {
+                    K::Int { .. } => LiteralKind::Int,
+                    K::Float { .. } => LiteralKind::Float,
+                    _ => LiteralKind::Other,
+                };
                 let suffix_start = suffix_start as usize;
                 let symbol = SmolStr::new(&s[..suffix_start]);
                 let suffix = SmolStr::new(&s[suffix_start..]);
-                TokenTree::Literal(Literal { symbol, suffix })
+                TokenTree::Literal(Literal { kind, symbol, suffix })
             }
             TokenKind::Pound => TokenTree::Punct(Punct::Pound),
             TokenKind::Bang if matches!(self.peek(), (t, TokenKind::Eq, _) if t.is_empty()) => TokenTree::Punct(Punct::BangEq),

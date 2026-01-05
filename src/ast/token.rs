@@ -335,8 +335,17 @@ impl Debug for Ident {
     }
 }
 
+// when updating this enum, also update glue.rs starting from `use ra_ap_rustc_lexer::LiteralKind as K;``
+#[derive(Debug, Clone, Copy, Print)]
+pub enum LiteralKind {
+    Int,
+    Float,
+    Other,
+}
+
 #[derive(Debug, Clone, Print)]
 pub struct Literal {
+    pub kind: LiteralKind,
     pub symbol: SmolStr,
     pub suffix: SmolStr,
 }

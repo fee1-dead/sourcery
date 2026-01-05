@@ -77,7 +77,7 @@ pub trait Pass {
         visit_expr_struct(ExprStruct);
         visit_expr_struct_fields(ExprStructFields);
         visit_expr_struct_field(ExprStructField);
-        visit_tuple_or_array_contents(TupleOrArrayContents);
+        visit_comma_sep_exprs(CommaSepExprs);
         visit_expr_repeat(ExprRepeat);
         visit_expr_paren(ExprParen);
         visit_macro_call(MacroCall);
@@ -106,6 +106,7 @@ pub trait Pass {
         visit_become(Become);
         visit_range_limits(RangeLimits);
         visit_expr_range(ExprRange);
+        visit_expr_call(ExprCall);
         visit_stmt(Stmt);
         visit_stmt_kind(StmtKind);
         visit_ty_alias(TyAlias);
